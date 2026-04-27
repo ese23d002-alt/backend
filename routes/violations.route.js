@@ -60,10 +60,6 @@ const c      = require('../controllers/violations.controller');
  *                       type: integer
  *                     totalPages:
  *                       type: integer
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
 router.get('/', auth, c.getAll);
 
@@ -84,12 +80,6 @@ router.get('/', auth, c.getAll);
  *     responses:
  *       201:
  *         description: Амжилттай нэмэгдлээ
- *       400:
- *         $ref: '#/components/responses/BadRequest'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
 router.post('/', auth, c.create);
 
@@ -116,12 +106,6 @@ router.post('/', auth, c.create);
  *     responses:
  *       200:
  *         description: Амжилттай засагдлаа
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
 router.put('/:id', auth, c.update);
 
@@ -142,12 +126,6 @@ router.put('/:id', auth, c.update);
  *     responses:
  *       200:
  *         description: Амжилттай устгагдлаа
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       404:
- *         $ref: '#/components/responses/NotFound'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
 router.delete('/:id', auth, c.remove);
 

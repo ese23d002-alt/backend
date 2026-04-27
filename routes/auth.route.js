@@ -38,10 +38,6 @@ const { login } = require('../controllers/auth.controller');
  *                   enum: [Admin, User]
  *                 username:
  *                   type: string
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
- *       500:
- *         $ref: '#/components/responses/ServerError'
  */
 router.post('/login', login);
 

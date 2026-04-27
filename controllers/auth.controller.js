@@ -5,6 +5,7 @@ const jwt    = require('jsonwebtoken');
 exports.login = async (req, res) => {
   const { username, password } = req.body;
   try {
+    ORM
     const [rows] = await db.query('SELECT * FROM users WHERE username=?', [username]);
     if (!rows.length) return res.status(401).json({ message: 'Хэрэглэгч олдсонгүй' });
 
