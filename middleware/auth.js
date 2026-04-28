@@ -5,9 +5,10 @@ module.exports = (req, res, next) => {
   if (!token) return res.status(401).json({ message: 'Token байхгүй' });
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('test',test)
+    console.log('test', req.user)
     next();
-  } catch {
+  } catch(err) {
+    console.log(err)
     res.status(403).json({ message: 'Token буруу' });
   }
 };

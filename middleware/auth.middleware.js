@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const auth   = require('../middleware/auth');
+const auth   = require('../middleware/auth.middleware'); // ✅ Зөв зам
 const c      = require('../controllers/violations.controller');
 
 /**
@@ -45,6 +45,8 @@ const c      = require('../controllers/violations.controller');
  *     responses:
  *       200:
  *         description: Амжилттай
+ *       401:
+ *         description: Нэвтрээгүй байна
  */
 router.get('/', auth, c.getAll);
 
@@ -82,6 +84,8 @@ router.get('/', auth, c.getAll);
  *     responses:
  *       201:
  *         description: Амжилттай нэмэгдлээ
+ *       401:
+ *         description: Нэвтрээгүй байна
  */
 router.post('/', auth, c.create);
 
@@ -117,6 +121,10 @@ router.post('/', auth, c.create);
  *     responses:
  *       200:
  *         description: Амжилттай засагдлаа
+ *       401:
+ *         description: Нэвтрээгүй байна
+ *       404:
+ *         description: Олдсонгүй
  */
 router.put('/:id', auth, c.update);
 
@@ -138,6 +146,10 @@ router.put('/:id', auth, c.update);
  *     responses:
  *       200:
  *         description: Амжилттай устгагдлаа
+ *       401:
+ *         description: Нэвтрээгүй байна
+ *       404:
+ *         description: Олдсонгүй
  */
 router.delete('/:id', auth, c.remove);
 
@@ -154,4 +166,5 @@ router.post('/create', auth, (req, res) => {
     });
 });
 
-module.exports = router; // ✅ Зөвхөн нэг удаа
+module.exports = router; // 
+``
