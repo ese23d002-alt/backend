@@ -85,7 +85,7 @@ exports.login = async (req, res) => {
     );
 
     // 5. Хариу илгээх
-    res.status(200).json({ 
+    return res.status(200).json({ 
       message: "Амжилттай нэвтэрлээ",
       token,
       user: {
@@ -97,6 +97,6 @@ exports.login = async (req, res) => {
 
   } catch (error) {
     console.error("Login алдаа:", error);
-    res.status(500).json({ message: "Серверийн алдаа", error: error.message });
+    return res.status(500).json({ message: "Серверийн алдаа", error: error.message });
   }
 };
