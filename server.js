@@ -48,8 +48,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend'));
 
-// --- ӨГӨГДЛИЙН САНГИЙН СИНХРОНЧЛОЛ ---
-// db.sync() нь бүх бүртгэгдсэн моделиудыг нэг дор синхрончилдог
+// --- ӨГӨГДЛИЙН САН ---
+// db.sync() нь бүх бүртгэгдсэн моделиудыг нэг дор 
 db.sync({ alter: true }) 
   .then(() => {
     console.log('✅ Өгөгдлийн сангийн хүснэгтүүд (Users) амжилттай шалгагдлаа/үүслээ.');
