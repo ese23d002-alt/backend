@@ -27,18 +27,26 @@ const User = sequelize.define("User", {
     allowNull: false,
   },
 
-  // createdAt
+  // --- НУУЦ ҮГ СЭРГЭЭХ ХЭСЭГ (Шинээр нэмэх) ---
+  reset_password_token: {
+    type: DataTypes.STRING,
+    allowNull: true, // Зөвхөн нууц үг сэргээх хүсэлт гаргахад утга авна
+  },
+  reset_password_expires: {
+    type: DataTypes.DATE,
+    allowNull: true, // Код хүчинтэй байх хугацаа
+  },
+  // ----------------------------------------
+
   createdAt: {
     type: DataTypes.DATE,
     allowNull: false,
-    field: "created_at", // DB дээр created_at нэртэй хадгалагдана
+    field: "created_at",
   },
-
-  // updatedAt
   updatedAt: {
     type: DataTypes.DATE,
     allowNull: false,
-    field: "updated_at", // DB дээр updated_at нэртэй хадгалагдана
+    field: "updated_at",
   },
 }, {
   timestamps: true,
