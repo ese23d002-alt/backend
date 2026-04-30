@@ -1,59 +1,20 @@
 const router = require('express').Router();
-const auth   = require('../middleware/auth');
-const c      = require('../controllers/violations.controller');
+const auth = require('../middleware/auth');
+const c = require('../controllers/violations.controller');
 
 /**
  * @swagger
  * tags:
  *   name: Violations
- *   description: Зөрчлийн менежмент
+ *   description: Зөрчлийн менежмент (Violation & Actions)
  */
-
-/**
- * @swagger
- * /api/violations:
- *   get:
- *     tags: [Violations]
- *     summary: Зөрчлүүдийг жагсаах
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *       - in: query
- *         name: severity
- *         schema:
- *           type: string
- *           enum: [low, mid, high, critical]
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [new, progress, done]
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Амжилттай
- */
-router.get('/', auth, c.getAll);
 
 /**
  * @swagger
  * /api/violations:
  *   post:
  *     tags: [Violations]
- *     summary: Зөрчил нэмэх
+ *     summary: Шинэ зөрчил ба арга хэмжээнүүдийг бүртгэх (Header + Details)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -63,34 +24,82 @@ router.get('/', auth, c.getAll);
  *           schema:
  *             type: object
  *             required:
- *               - title
+ *               - group_number
+ *               - year
+ *               - quarter
+ *               - violations
  *             properties:
- *               title:
+ *               group_number:
  *                 type: string
- *                 example: "Гүйдлийн хэтрэлт"
- *               description:
+ *                 example: "V-2026-001"
+ *               year:
+ *                 type: integer
+ *                 example: 2026
+ *               quarter:
+ *                 type: integer
+ *                 example: 1
+ *               rating:
  *                 type: string
- *                 example: "Хурдны хязгаар зөрчсөн"
- *               severity:
- *                 type: string
- *                 enum: [low, mid, high, critical]
- *                 example: "high"
- *               status:
- *                 type: string
- *                 enum: [new, progress, done]
- *                 example: "new"
+ *                 example: "B+"
+ *               violations:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                       example: "Аюулгүй ажиллагааны зөрчил"
+ *                     description:
+ *                       type: string
+ *                       example: "Тайлант хугацаанд зааварчилгаа аваагүй"
+ *                     severity:
+ *                       type: string
+ *                       example: "High"
+ *                     department:
+ *                       type: string
+ *                       example: "ИТ Алба"
+ *                     action_plan:
+ *                       type: string
+ *                       example: "Дахин сургалтанд хамруулах"
+ *                     due_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-05-20"
+ *                     assignee_name:
+ *                       type: string
+ *                       example: "Бат"
+ *                     assignee_email:
+ *                       type: string
+ *                       example: "bat@tavanbogd.com"
+ *                     manager_name:
+ *                       type: string
+ *                       example: "Болд"
  *     responses:
  *       201:
- *         description: Амжилттай нэмэгдлээ
+ *         description: Амжилттай бүртгэгдлээ
  */
-router.post('/', auth, c.create);
+router.post('/', auth, c.createViolation);
+
+/**
+ * @swagger
+ * /api/violations:
+ *   get:
+ *     tags: [Violations]
+ *     summary: Бүх зөрчлийн жагсаалтыг авах
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Амжилттай
+ */
+router.get('/', auth, c.getAllViolations);
 
 /**
  * @swagger
  * /api/violations/{id}:
- *   put:
+ *   get:
  *     tags: [Violations]
- *     summary: Зөрчил засах
+ *     summary: Тодорхой нэг зөрчлийн дэлгэрэнгүйг харах
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -99,26 +108,43 @@ router.post('/', auth, c.create);
  *         required: true
  *         schema:
  *           type: integer
- *           example: 1
+ *     responses:
+ *       200:
+ *         description: Амжилттай
+ */
+router.get('/:id', auth, c.getViolationById);
+
+/**
+ * @swagger
+ * /api/violations/{id}:
+ *   put:
+ *     tags: [Violations]
+ *     summary: Зөрчлийн хэрэгжилтийн хариу, нотлох баримт шинэчлэх
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
  *     requestBody:
- *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               title:
- *                 type: string
- *                 example: "Засварласан зөрчил"
  *               status:
  *                 type: string
- *                 enum: [new, progress, done]
- *                 example: "done"
+ *                 example: "Дууссан"
+ *               execution_response:
+ *                 type: string
+ *                 example: "Зааварчилгааг өгч дуусгасан."
  *     responses:
  *       200:
- *         description: Амжилттай засагдлаа
+ *         description: Амжилттай шинэчлэгдлээ
  */
-router.put('/:id', auth, c.update);
+router.put('/:id', auth, c.updateViolation);
 
 /**
  * @swagger
@@ -134,24 +160,10 @@ router.put('/:id', auth, c.update);
  *         required: true
  *         schema:
  *           type: integer
- *           example: 1
  *     responses:
  *       200:
- *         description: Амжилттай устгагдлаа
+ *         description: Устгагдлаа
  */
-router.delete('/:id', auth, c.remove);
+router.delete('/:id', auth, c.deleteViolation);
 
-// Нэвтрэх шаардлагагүй зам
-router.get('/all', (req, res) => {
-    res.json({ message: "Энэ мэдээллийг хэн ч үзэж болно." });
-});
-
-// Зөвхөн нэвтэрсэн хэрэглэгчид
-router.post('/create', auth, (req, res) => {
-    res.json({ 
-        message: "Амжилттай! Та нэвтэрсэн учраас энэ үйлдлийг хийж чадлаа.",
-        user: req.user
-    });
-});
-
-module.exports = router; // ✅ Зөвхөн нэг удаа
+module.exports = router;

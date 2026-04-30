@@ -1,7 +1,9 @@
+// routes/auth.route.js
+
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/auth.controller");
-const authGuard = require('../middleware/auth.guard');
+const authGuard = require("../middleware/auth.guard");
 
 /**
  * @swagger
@@ -42,65 +44,7 @@ const authGuard = require('../middleware/auth.guard');
  *       403:
  *         description: Токен хүчингүй болсон
  */
-router.get('/me', authGuard, authController.getMe);
-/**
- * @swagger
- * /api/auth/forgot-password:
- *   post:
- *     summary: Нууц үг сэргээх хүсэлт гаргах (И-мэйл илгээх)
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 example: user@example.com
- *     responses:
- *       200:
- *         description: Линкийг и-мэйл рүү илгээлээ
- *       404:
- *         description: Хэрэглэгч олдсонгүй
- */
-router.post("/forgot-password", authController.forgotPassword);
-
-/**
- * @swagger
- * /api/auth/reset-password/{token}:
- *   post:
- *     summary: Нууц үг шинэчлэх
- *     tags: [Auth]
- *     parameters:
- *       - in: path
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *         description: И-мэйлээр ирсэн нууц токен
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - password
- *             properties:
- *               password:
- *                 type: string
- *                 example: "newpassword123"
- *     responses:
- *       200:
- *         description: Нууц үг амжилттай шинэчлэгдлээ
- *       400:
- *         description: Токен хүчингүй эсвэл хугацаа нь дууссан
- */
-router.post("/reset-password/:token", authController.resetPassword);
+router.get("/me", authGuard, authController.getMe);
 
 /**
  * @swagger
@@ -168,5 +112,63 @@ router.post("/signup", authController.signup);
  *         description: Нэр эсвэл нууц үг буруу
  */
 router.post("/login", authController.login);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Нууц үг сэргээх хүсэлт гаргах (OTP и-мэйл илгээх)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *     responses:
+ *       200:
+ *         description: OTP кодыг и-мэйл рүү илгээлээ
+ *       500:
+ *         description: И-мэйл илгээхэд алдаа гарлаа
+ */
+router.post("/forgot-password", authController.forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Нууц үг шинэчлэх (OTP кодоор)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - otp
+ *               - password
+ *             properties:
+ *               otp:
+ *                 type: string
+ *                 description: И-мэйлээр ирсэн 6 оронтой код
+ *                 example: "123456"
+ *               password:
+ *                 type: string
+ *                 description: Шинэ нууц үг
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Нууц үг амжилттай шинэчлэгдлээ
+ *       400:
+ *         description: Код буруу эсвэл хугацаа дууссан
+ */
+router.post("/reset-password", authController.resetPassword);
 
 module.exports = router;

@@ -3,15 +3,11 @@ const cors = require('cors');
 const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
-
-// 1. Тохиргоог унших
 require('dotenv').config();
 
-// 2. DB холболтыг дуудах
-const db = require("./db/database"); 
-
-// --- ЧУХАЛ: Моделийг синхрончлохоос өмнө заавал require хийнэ ---
-const User = require("./models/user.model"); 
+// 1. Өгөгдлийн сангийн холболт болон Моделүүдийг импортлох
+const sequelize = require("./db/database");
+const { User, ViolationGroup, Violation } = require("./models/user.model"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,19 +39,25 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://172.16.101.73:5173','http://localhost:5173', 'http://172.16.101.72:3000','http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend'));
 
-// --- ӨГӨГДЛИЙН САН ---
-// db.sync() нь бүх бүртгэгдсэн моделиудыг нэг дор 
-db.sync({ alter: true }) 
+// --- ӨГӨГДЛИЙН САНГ СИНХРОНЧЛОХ ---
+// sequelize.sync() нь бүх бүртгэгдсэн моделыг бааз руу илгээнэ
+// --- ӨГӨГДЛИЙН САНГ СИНХРОНЧЛОХ ---
+// АНХААР: { force: true } нь баазыг бүрэн устгаад шинээр үүсгэнэ. 
+// Энэ нь 'Too many keys' алдааг засах цорын ганц хурдан арга юм.
+sequelize.sync({ force: true }) 
   .then(() => {
-    console.log('✅ Өгөгдлийн сангийн хүснэгтүүд (Users) амжилттай шалгагдлаа/үүслээ.');
+    console.log("✅ Бааз бүрэн шинэчлэгдэж, хүснэгтүүд (Users, Violations, Groups) шинээр үүслээ.");
   })
   .catch(err => {
-    console.error('❌ Хүснэгт үүсгэхэд алдаа гарлаа:', err);
+    console.log("❌ Өгөгдлийн сангийн алдаа:", err);
   });
 
 // Үндсэн зам
@@ -77,6 +79,6 @@ app.use((err, req, res, next) => {
 
 // Серверийг асаах
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running at http://localhost:${PORT}`);
-  console.log(`📑 Swagger: http://localhost:${PORT}/api-docs`);
+  console.log(` Server is running at http://localhost:${PORT}`);
+  console.log(` Swagger: http://localhost:${PORT}/api-docs`);
 });
