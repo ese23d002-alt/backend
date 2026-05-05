@@ -1,34 +1,39 @@
 const { ViolationGroup, Violation } = require("../models/user.model");
 const xlsx = require('xlsx');
 
+// 1. EXCEL-ЭЭС ИМПОРТЛОХ
 exports.importFromExcel = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Excel файл оруулна уу." });
         }
 
-        // 1. Файлыг унших
+        // Frontend-ийн формын дээд хэсгээс ирэх өгөгдөл
+        const { group_number, year, quarter, rating } = req.body;
+
+        // Excel файлыг унших
         const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const data = xlsx.utils.sheet_to_json(sheet);
 
-        // 2. Групп мэдээллийг авч үүсгэх (Жишээ нь Excel-ийн эхний мөрнөөс)
-        // Энд та өөрийн Excel-ийн бүтцэд тааруулж өөрчилж болно
+        // Header буюу Групп үүсгэх
         const group = await ViolationGroup.create({
-            group_number: req.body.group_number || "EXP-" + Date.now(),
-            year: req.body.year || new Date().getFullYear(),
-            quarter: req.body.quarter || 1
+            group_number: group_number || `ЗД-${new Date().getFullYear()}-${Date.now()}`,
+            year: year || new Date().getFullYear(),
+            quarter: quarter || "I улирал",
+            rating: rating || "Бага"
         });
 
-        // 3. Зөрчлүүдийг бэлдэх
+        // Excel-ийн мөр бүрийг баазын талбарт тааруулах
         const violations = data.map(row => ({
-            title: row['Зөрчлийн нэр'] || row['Title'],
-            description: row['Тайлбар'] || row['Description'],
-            severity: row['Эрсдэл'] || row['Severity'],
-            department: row['Хэлтэс'] || row['Department'],
-            action_plan: row['Арга хэмжээ'] || row['Action'],
-            assignee_name: row['Хариуцагч'] || row['Assignee'],
+            title: row['Зөрчлийн нэр'] || row['Title'] || 'Нэргүй зөрчил',
+            description: row['Тайлбар'] || row['Description'] || '',
+            severity: row['Эрсдэл'] || row['Severity'] || rating,
+            department: row['Хэлтэс'] || row['Department'] || '',
+            action_plan: row['Арга хэмжээ'] || row['Action'] || '',
+            assignee_name: row['Хариуцагч'] || row['Assignee'] || '',
+            due_date: row['Дуусах огноо'] || row['Due Date'] || null, // Зураг дээрх "Дуусах огноо"
             group_id: group.id
         }));
 
@@ -36,15 +41,16 @@ exports.importFromExcel = async (req, res) => {
 
         res.status(201).json({ 
             success: true, 
-            message: `${violations.length} зөрчлийг амжилттай импортлолоо.` 
+            message: `${violations.length} зөрчлийг амжилттай импортлолоо.`,
+            groupId: group.id
         });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Excel уншихад алдаа гарлаа." });
+        console.error("Excel Import Error:", error);
+        res.status(500).json({ message: "Excel уншихад алдаа гарлаа.", error: error.message });
     }
 };
 
-// 1. Шинэ зөрчил бүртгэх (Header + Details)
+// 2. ГАРААР БҮРТГЭХ (Frontend-ээс JSON-оор ирэх үед)
 exports.createViolation = async (req, res) => {
     try {
         const { group_number, year, quarter, rating, violations } = req.body;
@@ -60,15 +66,19 @@ exports.createViolation = async (req, res) => {
 
         res.status(201).json({ success: true, message: "Амжилттай бүртгэгдлээ." });
     } catch (error) {
-        res.status(500).json({ message: "Алдаа гарлаа.", error: error.message });
+        res.status(500).json({ message: "Бүртгэх явцад алдаа гарлаа.", error: error.message });
     }
 };
 
-// 2. Бүх зөрчлийг жагсаалтаар авах
+// 3. БҮХ ЗӨРЧЛИЙГ ЖАГСААЛТААР АВАХ
 exports.getAllViolations = async (req, res) => {
     try {
         const data = await ViolationGroup.findAll({
-            include: [{ model: Violation, as: 'violations' }]
+            include: [{ 
+                model: Violation, 
+                as: 'violations' // Модел дээр тохируулсан 'as' нэр
+            }],
+            order: [['createdAt', 'DESC']]
         });
         res.json(data);
     } catch (error) {
@@ -76,23 +86,24 @@ exports.getAllViolations = async (req, res) => {
     }
 };
 
-// 3. Нэг зөрчлийг ID-аар харах
+// 4. НЭГ ЗӨРЧЛИЙГ ID-ААР ХАРАХ
 exports.getViolationById = async (req, res) => {
     try {
-        const data = await Violation.findByPk(req.params.id, {
-            include: [{ model: ViolationGroup, as: 'group' }]
+        const data = await ViolationGroup.findByPk(req.params.id, {
+            include: [{ model: Violation, as: 'violations' }]
         });
         if (!data) return res.status(404).json({ message: "Зөрчил олдсонгүй." });
         res.json(data);
     } catch (error) {
-        res.status(500).json({ message: "Алдаа гарлаа.", error: error.message });
+        res.status(500).json({ message: "Мэдээлэл авахад алдаа гарлаа.", error: error.message });
     }
 };
 
-// 4. Зөрчил засах / Хэрэгжилтийн хариу бичих
+// 5. ЗӨРЧИЛ ЗАСАХ / ШИНЭЧЛЭХ
 exports.updateViolation = async (req, res) => {
     try {
         const { id } = req.params;
+        // Зөвхөн нэг мөрийг (Violation) засах бол:
         await Violation.update(req.body, { where: { id } });
         res.json({ success: true, message: "Амжилттай шинэчлэгдлээ." });
     } catch (error) {
@@ -100,11 +111,12 @@ exports.updateViolation = async (req, res) => {
     }
 };
 
-// 5. Зөрчил устгах
+// 6. ЗӨРЧИЛ УСТГАХ
 exports.deleteViolation = async (req, res) => {
     try {
-        await Violation.destroy({ where: { id: req.params.id } });
-        res.json({ success: true, message: "Устгагдлаа." });
+        // Группээр нь устгавал хамааралтай бүх зөрчлүүд устана (Cascade)
+        await ViolationGroup.destroy({ where: { id: req.params.id } });
+        res.json({ success: true, message: "Мэдээлэл бүрэн устгагдлаа." });
     } catch (error) {
         res.status(500).json({ message: "Устгахад алдаа гарлаа.", error: error.message });
     }

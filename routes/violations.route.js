@@ -14,7 +14,7 @@ const c = require('../controllers/violations.controller');
  * /api/violations:
  *   post:
  *     tags: [Violations]
- *     summary: Шинэ зөрчил ба арга хэмжээнүүдийг бүртгэх (Header + Details)
+ *     summary: Шинэ зөрчил нэмэх
  *     security:
  *       - bearerAuth: []
  *     requestBody:
