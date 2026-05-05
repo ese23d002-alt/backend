@@ -1,13 +1,42 @@
 const router = require('express').Router();
-const auth   = require('../middleware/auth.middleware'); // ✅ Зөв зам
+const auth   = require('../middleware/auth.middleware');
 const c      = require('../controllers/violations.controller');
 
 /**
  * @swagger
  * tags:
- *   name: Violations
- *   description: Зөрчлийн менежмент
+ *   - name: Violations
+ *     description: Зөрчлийн менежмент
  */
+
+/**
+ * @swagger
+ * /api/violations/stats:
+ *   get:
+ *     tags: [Violations]
+ *     summary: Ерөнхий тойм статистик авах (хугацаагаар шүүх боломжтой)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Эхлэх огноо (YYYY-MM-DD)
+ *       - in: query
+ *         name: end
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Дуусах огноо (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Амжилттай
+ *       401:
+ *         description: Нэвтрээгүй байна
+ */
+router.get('/stats', auth, c.getGeneralStats);
 
 /**
  * @swagger
@@ -23,11 +52,13 @@ const c      = require('../controllers/violations.controller');
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Хуудасны дугаар
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 20
+ *         description: Нэг хуудсанд авах тоо
  *       - in: query
  *         name: severity
  *         schema:
@@ -38,6 +69,7 @@ const c      = require('../controllers/violations.controller');
  *         schema:
  *           type: string
  *           enum: [new, progress, done]
+ *         description: Зөрчлийн төлөв
  *       - in: query
  *         name: search
  *         schema:
@@ -47,12 +79,6 @@ const c      = require('../controllers/violations.controller');
  *         description: Амжилттай
  *       401:
  *         description: Нэвтрээгүй байна
- */
-router.get('/', auth, c.getAll);
-
-/**
- * @swagger
- * /api/violations:
  *   post:
  *     tags: [Violations]
  *     summary: Зөрчил нэмэх
@@ -69,24 +95,19 @@ router.get('/', auth, c.getAll);
  *             properties:
  *               title:
  *                 type: string
- *                 example: "Гүйдлийн хэтрэлт"
  *               description:
  *                 type: string
- *                 example: "Хурдны хязгаар зөрчсөн"
  *               severity:
  *                 type: string
  *                 enum: [low, mid, high, critical]
- *                 example: "high"
  *               status:
  *                 type: string
  *                 enum: [new, progress, done]
- *                 example: "new"
  *     responses:
  *       201:
  *         description: Амжилттай нэмэгдлээ
- *       401:
- *         description: Нэвтрээгүй байна
  */
+router.get('/', auth, c.getAll);
 router.post('/', auth, c.create);
 
 /**
@@ -113,24 +134,12 @@ router.post('/', auth, c.create);
  *             properties:
  *               title:
  *                 type: string
- *                 example: "Засварласан зөрчил"
  *               status:
  *                 type: string
  *                 enum: [new, progress, done]
- *                 example: "done"
  *     responses:
  *       200:
  *         description: Амжилттай засагдлаа
- *       401:
- *         description: Нэвтрээгүй байна
- *       404:
- *         description: Олдсонгүй
- */
-router.put('/:id', auth, c.update);
-
-/**
- * @swagger
- * /api/violations/{id}:
  *   delete:
  *     tags: [Violations]
  *     summary: Зөрчил устгах
@@ -142,29 +151,11 @@ router.put('/:id', auth, c.update);
  *         required: true
  *         schema:
  *           type: integer
- *           example: 1
  *     responses:
  *       200:
  *         description: Амжилттай устгагдлаа
- *       401:
- *         description: Нэвтрээгүй байна
- *       404:
- *         description: Олдсонгүй
  */
+router.put('/:id', auth, c.update);
 router.delete('/:id', auth, c.remove);
 
-// Нэвтрэх шаардлагагүй зам
-router.get('/all', (req, res) => {
-    res.json({ message: "Энэ мэдээллийг хэн ч үзэж болно." });
-});
-
-// Зөвхөн нэвтэрсэн хэрэглэгчид
-router.post('/create', auth, (req, res) => {
-    res.json({ 
-        message: "Амжилттай! Та нэвтэрсэн учраас энэ үйлдлийг хийж чадлаа.",
-        user: req.user
-    });
-});
-
-module.exports = router; // 
-``
+module.exports = router;

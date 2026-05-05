@@ -70,7 +70,7 @@ app.use('/api/email', require('./routes/email.route'));
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Сервер дээр алдаа гарлаа!' });
-});
+}); 
 
 // --- Серверийг асаах ---
 app.listen(PORT, () => {

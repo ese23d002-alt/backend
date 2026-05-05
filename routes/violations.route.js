@@ -1,17 +1,69 @@
 const router = require('express').Router();
-const auth = require('../middleware/auth');
-const c = require('../controllers/violations.controller');
+const auth   = require('../middleware/auth');
+const c      = require('../controllers/violations.controller');
 
 /**
  * @swagger
  * tags:
- *   name: Violations
- *   description: Зөрчлийн менежмент (Violation & Actions)
+ *   - name: Violations
+ *     description: Зөрчлийн менежмент (Violation & Actions)
  */
 
 /**
  * @swagger
+ * /api/violations/stats:
+ *   get:
+ *     tags: [Violations]
+ *     summary: Ерөнхий тойм статистик авах
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Амжилттай
+ */
+router.get('/stats', auth, c.getGeneralStats);
+
+/**
+ * @swagger
  * /api/violations:
+ *   get:
+ *     tags: [Violations]
+ *     summary: Бүх зөрчлийн жагсаалтыг авах
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Хуудасны дугаар
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Нэг хуудсанд авах тоо
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [new, progress, done]
+ *         description: Төлөвөөр шүүх
+ *       - in: query
+ *         name: severity
+ *         schema:
+ *           type: string
+ *           enum: [low, mid, high, critical]
+ *         description: Эрсдэлээр шүүх
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Хайлт
+ *     responses:
+ *       200:
+ *         description: Амжилттай
  *   post:
  *     tags: [Violations]
  *     summary: Шинэ зөрчил нэмэх
@@ -78,21 +130,8 @@ const c = require('../controllers/violations.controller');
  *       201:
  *         description: Амжилттай бүртгэгдлээ
  */
-router.post('/', auth, c.createViolation);
-
-/**
- * @swagger
- * /api/violations:
- *   get:
- *     tags: [Violations]
- *     summary: Бүх зөрчлийн жагсаалтыг авах
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Амжилттай
- */
 router.get('/', auth, c.getAllViolations);
+router.post('/', auth, c.createViolation);
 
 /**
  * @swagger
@@ -111,12 +150,6 @@ router.get('/', auth, c.getAllViolations);
  *     responses:
  *       200:
  *         description: Амжилттай
- */
-router.get('/:id', auth, c.getViolationById);
-
-/**
- * @swagger
- * /api/violations/{id}:
  *   put:
  *     tags: [Violations]
  *     summary: Зөрчлийн хэрэгжилтийн хариу, нотлох баримт шинэчлэх
@@ -136,19 +169,13 @@ router.get('/:id', auth, c.getViolationById);
  *             properties:
  *               status:
  *                 type: string
- *                 example: "Дууссан"
+ *                 example: "done"
  *               execution_response:
  *                 type: string
  *                 example: "Зааварчилгааг өгч дуусгасан."
  *     responses:
  *       200:
  *         description: Амжилттай шинэчлэгдлээ
- */
-router.put('/:id', auth, c.updateViolation);
-
-/**
- * @swagger
- * /api/violations/{id}:
  *   delete:
  *     tags: [Violations]
  *     summary: Зөрчил устгах
@@ -164,6 +191,8 @@ router.put('/:id', auth, c.updateViolation);
  *       200:
  *         description: Устгагдлаа
  */
+router.get('/:id', auth, c.getViolationById);
+router.put('/:id', auth, c.updateViolation);
 router.delete('/:id', auth, c.deleteViolation);
 
 module.exports = router;
