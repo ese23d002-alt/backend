@@ -7,12 +7,12 @@ require('dotenv').config();
 
 // 1. Өгөгдлийн сан болон Моделүүдийг импортлох
 const sequelize = require("./db/database");
-// Моделүүдийг заавал энд дуудаж өгснөөр sequelize.sync() ажиллахдаа тэдгээрийг таньж баазад үүсгэнэ.
 const { User, ViolationGroup, Violation } = require("./models/user.model"); 
 const { error } = require('console');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.SERVER_HOST || 'localhost';
 
 // --- Swagger Тохиргоо ---
 const swaggerOptions = {
@@ -23,7 +23,10 @@ const swaggerOptions = {
       version: '1.0.0',
       description: 'Системийн API замуудын тайлбар болон туршилт',
     },
-    servers: [{ url: `http://localhost:${PORT}` }],
+    servers: [
+      { url: `http://localhost:${PORT}`, description: 'Локал' },
+      { url: `http://${HOST}:${PORT}`, description: 'Сүлжээ' }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -42,19 +45,12 @@ const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 // --- Middleware ---
 app.use(cors({
-  origin: ['http://172.16.101.73:5173', 'http://localhost:5173', 'http://172.16.101.72:3000', 'http://localhost:3000'],
-  credentials: true
+  origin: '*',
+  credentials: false
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('frontend'));  
-sequelize.sync({ alter: true }) 
-  .then(() => {
-    console.log("✅ Бааз амжилттай шинэчлэгдлээ. (Users, ViolationGroups, Violations)");
-  })
-  .catch(err => {
-    console.error("❌ Өгөгдлийн сангийн синхрончлолын алдаа:", err);
-  });
 
 // --- Маршрутууд (Routes) ---
 app.get('/', (req, res) => {
@@ -73,7 +69,8 @@ app.use((err, req, res, next) => {
 }); 
 
 // --- Серверийг асаах ---
-app.listen(PORT, () => {
-  console.log(`🚀 Server is running at http://localhost:${PORT}`);
-  console.log(`📑 Swagger: http://localhost:${PORT}/api-docs`);
-});
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server: http://localhost:${PORT}`);
+  console.log(`Server: http://${HOST}:${PORT}`);
+  console.log(`Swagger: http://${HOST}:${PORT}/api-docs`);
+}); 
