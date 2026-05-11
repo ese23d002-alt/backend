@@ -3,7 +3,6 @@ const xlsx = require('xlsx');
 const { Sequelize, Op } = require("sequelize");
 
 // 1. DASHBOARD-ИЙН СТАТИСТИК
-// Dashboard дээрх нийт тоо болон картуудад өгөгдөл өгнө
 exports.getGeneralStats = async (req, res) => {
     try {
         const { start, end } = req.query;
@@ -76,23 +75,20 @@ exports.importFromExcel = async (req, res) => {
     }
 };
 
-// 3. БҮХ ЗӨРЧЛИЙГ ЖАГСААЛТААР АВАХ (Хуудаслалт + Шүүлтүүр)
+// 3. БҮХ ЗӨРЧЛИЙГ ЖАГСААЛТААР АВАХ
 exports.getAllViolations = async (req, res) => {
     try {
-        // Хуудаслалтын параметрүүд
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10; // Нэг хуудсанд 10 дата
+        const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
 
         const { status, severity, search } = req.query;
         let violationWhere = {};
 
-        // Шүүлтүүрүүд
         if (status) violationWhere.status = status;
         if (severity) violationWhere.severity = severity;
         if (search) violationWhere.title = { [Op.like]: `%${search}%` };
 
-        // findAndCountAll ашиглан нийт тоо болон датаг хамт авна
         const { count, rows } = await ViolationGroup.findAndCountAll({
             include: [{ 
                 model: Violation, 
@@ -100,16 +96,16 @@ exports.getAllViolations = async (req, res) => {
                 where: violationWhere,
                 required: false 
             }],
-            limit: limit,
-            offset: offset,
+            limit,
+            offset,
             order: [['createdAt', 'DESC']],
-            distinct: true // Нийт тоог зөв гаргахад чухал
+            distinct: true
         });
 
         res.json({
             success: true,
-            totalItems: count, // Нийт 13 зөрчил гэсэн тоо эндээс гарна
-            totalPages: Math.ceil(count / limit), // Нийт хуудасны тоо (жишээ нь: 2)
+            totalItems: count,
+            totalPages: Math.ceil(count / limit),
             currentPage: page,
             data: rows
         });
@@ -165,5 +161,60 @@ exports.deleteViolation = async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+// 8. ТАЙЛАНГИЙН ӨГӨГДӨЛ АВАХ
+exports.getReport = async (req, res) => {
+    try {
+        const { quarter, year, department } = req.query;
+
+        let groupWhere = {};
+        if (quarter) groupWhere.quarter = quarter;
+        if (year) groupWhere.year = parseInt(year);
+
+        let violationWhere = {};
+        if (department) violationWhere.department = { [Op.like]: `%${department}%` };
+
+        const groups = await ViolationGroup.findAll({
+            where: groupWhere,
+            include: [{
+                model: Violation,
+                as: 'violations',
+                where: Object.keys(violationWhere).length ? violationWhere : undefined,
+                required: false
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const allViolations = groups.flatMap(g => g.violations || []);
+
+        const stats = {
+            total: allViolations.length,
+            new: allViolations.filter(v => v.status === 'new').length,
+            pending: allViolations.filter(v => v.status === 'pending').length,
+            resolved: allViolations.filter(v => v.status === 'resolved').length,
+            critical: allViolations.filter(v => v.severity === 'critical').length,
+            high: allViolations.filter(v => v.severity === 'high').length,
+            medium: allViolations.filter(v => v.severity === 'medium').length,
+            low: allViolations.filter(v => v.severity === 'low').length,
+        };
+
+        const byDepartment = allViolations.reduce((acc, v) => {
+            const dep = v.department || 'Тодорхойгүй';
+            acc[dep] = (acc[dep] || 0) + 1;
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            stats,
+            byDepartment,
+            groups,
+            violations: allViolations
+        });
+    } catch (error) {
+        console.error("Report Error:", error);
+        res.status(500).json({ message: "Тайлан авахад алдаа гарлаа.", error: error.message });
     }
 };
