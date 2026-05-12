@@ -28,11 +28,11 @@ exports.getGeneralStats = async (req, res) => {
             raw: true
         });
 
-        res.json({ 
-            success: true, 
-            total, 
-            byStatus: statsByStatus, 
-            bySeverity: statsBySeverity 
+        res.json({
+            success: true,
+            total,
+            byStatus: statsByStatus,
+            bySeverity: statsBySeverity
         });
     } catch (error) {
         console.error("Stats Error:", error);
@@ -90,11 +90,11 @@ exports.getAllViolations = async (req, res) => {
         if (search) violationWhere.title = { [Op.like]: `%${search}%` };
 
         const { count, rows } = await ViolationGroup.findAndCountAll({
-            include: [{ 
-                model: Violation, 
+            include: [{
+                model: Violation,
                 as: 'violations',
                 where: violationWhere,
-                required: false 
+                required: false
             }],
             limit,
             offset,
@@ -112,6 +112,142 @@ exports.getAllViolations = async (req, res) => {
     } catch (error) {
         console.error("GetAll Error:", error);
         res.status(500).json({ message: "Жагсаалт авахад алдаа гарлаа." });
+    }
+};
+// EXCEL ЭКСПОРТ
+exports.exportExcel = async (req, res) => {
+    try {
+        const { quarter, year, department } = req.query;
+
+        let groupWhere = {};
+        if (quarter) groupWhere.quarter = quarter;
+        if (year) groupWhere.year = parseInt(year);
+
+        let violationWhere = {};
+        if (department) violationWhere.department = { [Op.like]: `%${department}%` };
+
+        const groups = await ViolationGroup.findAll({
+            where: groupWhere,
+            include: [{
+                model: Violation,
+                as: 'violations',
+                where: Object.keys(violationWhere).length ? violationWhere : undefined,
+                required: false
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const allViolations = groups.flatMap(g =>
+            (g.violations || []).map(v => ({
+                'Бүлгийн дугаар': g.group_number,
+                'Жил': g.year,
+                'Улирал': g.quarter,
+                'Зөрчлийн нэр': v.title,
+                'Тайлбар': v.description || '',
+                'Хэлтэс': v.department || '',
+                'Түвшин': v.severity,
+                'Төлөв': v.status,
+                'Хариуцагч': v.assignee_name || '',
+                'Арга хэмжээ': v.action_plan || '',
+                'Дуусах огноо': v.due_date ? v.due_date.toString().split('T')[0] : '',
+            }))
+        );
+
+        const wb = xlsx.utils.book_new();
+        const ws = xlsx.utils.json_to_sheet(allViolations);
+        xlsx.utils.book_append_sheet(wb, ws, 'Тайлан');
+
+        const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Disposition', 'attachment; filename=report.xlsx');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.send(buffer);
+    } catch (error) {
+        res.status(500).json({ message: 'Excel экспортлоход алдаа гарлаа.', error: error.message });
+    }
+};
+
+// PDF ЭКСПОРТ
+exports.exportPdf = async (req, res) => {
+    try {
+        const { quarter, year, department } = req.query;
+
+        let groupWhere = {};
+        if (quarter) groupWhere.quarter = quarter;
+        if (year) groupWhere.year = parseInt(year);
+
+        let violationWhere = {};
+        if (department) violationWhere.department = { [Op.like]: `%${department}%` };
+
+        const groups = await ViolationGroup.findAll({
+            where: groupWhere,
+            include: [{
+                model: Violation,
+                as: 'violations',
+                where: Object.keys(violationWhere).length ? violationWhere : undefined,
+                required: false
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+
+        const allViolations = groups.flatMap(g => g.violations || []);
+
+        // HTML загвар үүсгэх
+        const rows = allViolations.map((v, i) => {
+            const group = groups.find(g => g.id === v.group_id);
+            return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${group?.group_number || ''}</td>
+                    <td>${v.title}</td>
+                    <td>${v.department || ''}</td>
+                    <td>${v.severity}</td>
+                    <td>${v.status}</td>
+                    <td>${v.assignee_name || ''}</td>
+                    <td>${v.due_date ? v.due_date.toString().split('T')[0] : ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const html = `
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: Arial, sans-serif; font-size: 12px; }
+                    h2 { text-align: center; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background: #3498db; color: white; padding: 8px; text-align: left; }
+                    td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+                    tr:nth-child(even) { background: #f9f9f9; }
+                </style>
+            </head>
+            <body>
+                <h2>Зөрчлийн тайлан</h2>
+                <p>Нийт: ${allViolations.length} зөрчил</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Бүлэг</th>
+                            <th>Зөрчлийн нэр</th>
+                            <th>Хэлтэс</th>
+                            <th>Түвшин</th>
+                            <th>Төлөв</th>
+                            <th>Хариуцагч</th>
+                            <th>Дуусах огноо</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+    } catch (error) {
+        res.status(500).json({ message: 'PDF экспортлоход алдаа гарлаа.', error: error.message });
     }
 };
 
@@ -155,14 +291,35 @@ exports.updateViolation = async (req, res) => {
 };
 
 // 7. ЗӨРЧИЛ УСТГАХ
+
 exports.deleteViolation = async (req, res) => {
     try {
-        await ViolationGroup.destroy({ where: { id: req.params.id } });
-        res.json({ success: true });
+        const { id } = req.params;
+
+        // 1. Устгахын өмнө тухайн объект байгаа эсэхийг шалгах (Сонголттой)
+        const deletedCount = await ViolationGroup.destroy({
+            where: { id: id }
+        });
+
+
+
+        if (deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Устгах өгөгдөл олдсонгүй."
+            });
+        }
+
+
+
+        res.json({ success: true, message: "Амжилттай устгагдлаа." });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        // 'error. Message' биш 'error.message' (жижиг m)
+        res.status(500).json({ success: false, error: error.message });
     }
 };
+
+
 
 // 8. ТАЙЛАНГИЙН ӨГӨГДӨЛ АВАХ
 exports.getReport = async (req, res) => {

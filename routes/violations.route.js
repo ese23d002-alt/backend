@@ -51,7 +51,9 @@ router.get('/stats', auth, c.getGeneralStats);
  *       200:
  *         description: Амжилттай
  */
-router.get('/report', auth, c.getReport);  // ← /:id -ийн өмнө байх ёстой
+router.get('/report', auth, c.getReport);
+router.get('/report/export/excel', auth, c.exportExcel);
+router.get('/report/export/pdf', auth, c.exportPdf);
 
 router.get('/', auth, c.getAllViolations);
 router.post('/', auth, c.createViolation);

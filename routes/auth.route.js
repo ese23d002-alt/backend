@@ -1,5 +1,3 @@
-// routes/auth.route.js
-
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/auth.controller");
@@ -23,22 +21,6 @@ const authGuard = require("../middleware/auth.guard");
  *     responses:
  *       200:
  *         description: Токен хүчинтэй, хэрэглэгчийн мэдээлэл
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 user:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: integer
- *                     username:
- *                       type: string
- *                     role:
- *                       type: string
  *       401:
  *         description: Токен байхгүй эсвэл буруу
  *       403:
@@ -68,11 +50,9 @@ router.get("/me", authGuard, authController.getMe);
  *                 example: john_doe
  *               email:
  *                 type: string
- *                 format: email
  *                 example: john@example.com
  *               password:
  *                 type: string
- *                 format: password
  *                 example: "123456"
  *     responses:
  *       201:
@@ -103,7 +83,6 @@ router.post("/signup", authController.signup);
  *                 example: john_doe
  *               password:
  *                 type: string
- *                 format: password
  *                 example: "123456"
  *     responses:
  *       200:
@@ -141,6 +120,36 @@ router.post("/forgot-password", authController.forgotPassword);
 
 /**
  * @swagger
+ * /api/auth/verify-otp:
+ *   post:
+ *     summary: OTP код шалгах
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@example.com
+ *               otp:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: Код баталгаажлаа
+ *       400:
+ *         description: Код буруу эсвэл хугацаа дууссан
+ */
+router.post("/verify-otp", authController.verifyOtp);
+
+/**
+ * @swagger
  * /api/auth/reset-password:
  *   post:
  *     summary: Нууц үг шинэчлэх (OTP кодоор)
@@ -153,15 +162,13 @@ router.post("/forgot-password", authController.forgotPassword);
  *             type: object
  *             required:
  *               - otp
- *               - password
+ *               - newpassword
  *             properties:
  *               otp:
  *                 type: string
- *                 description: И-мэйлээр ирсэн 6 оронтой код
  *                 example: "123456"
  *               password:
  *                 type: string
- *                 description: Шинэ нууц үг
  *                 example: "newpassword123"
  *     responses:
  *       200:

@@ -1,17 +1,34 @@
 const nodemailer = require('nodemailer');
+const ntlm = require('nodemailer-ntlm-auth');
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,       // ← SMTP_HOST → EMAIL_HOST
+  host: process.env.EMAIL_HOST || 'mx.tavanbogd.com',
   port: parseInt(process.env.EMAIL_PORT) || 587,
   secure: false,
+  customAuth: {
+    NTLM: ntlm
+  },
   auth: {
-    user: process.env.EMAIL_USER,     // ← SMTP_USER → EMAIL_USER
-    pass: process.env.EMAIL_PASS,     // ← SMTP_PASS → EMAIL_PASS
+    type: 'NTLM',
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+    domain: process.env.EMAIL_DOMAIN || 'tavanbogd'
   },
   tls: {
-    rejectUnauthorized: false         // ← корпорат сервер бол заавал нэм
+    rejectUnauthorized: false
   }
 });
+
+// transporter.verify(function (error, success) {
+//   if (error) {
+//     console.log("SMTP холболтын алдаа:", error);
+//   } else {
+//     console.log("");
+//   }
+// });
+
+// OTP түр хадгалах (санах ойд)
+const otpStore = new Map();
 
 exports.sendEmail = async (req, res) => {
   const { to, subject, body } = req.body;
@@ -24,6 +41,7 @@ exports.sendEmail = async (req, res) => {
     });
     res.json({ message: 'Email амжилттай илгээгдлээ' });
   } catch (e) {
+    console.error("EMAIL ERROR:", e);
     res.status(500).json({ message: 'Алдаа гарлаа', error: e.message });
   }
 };

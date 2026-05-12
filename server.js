@@ -45,8 +45,13 @@ const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
 // --- Middleware ---
 app.use(cors({
-  origin: '*',
-  credentials: false
+  origin: [
+    'http://localhost:5173',
+    'http://192.168.160.119:5173',
+    'http://10.20.19.20:5173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
