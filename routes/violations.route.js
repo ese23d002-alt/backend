@@ -24,99 +24,6 @@ const upload = require("../middleware/upload");
  */
 router.get('/stats', auth, c.getGeneralStats);
 
-// /**
-//  * @swagger
-//  * /api/violations/report:
-//  *   get:
-//  *     tags: [Violations]
-//  *     summary: Тайлангийн өгөгдөл авах
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: query
-//  *         name: year
-//  *         schema:
-//  *           type: integer
-//  *         description: Жил
-//  *       - in: query
-//  *         name: quarter
-//  *         schema:
-//  *           type: string
-//  *         description: Улирал (I улирал, II улирал ...)
-//  *       - in: query
-//  *         name: department
-//  *         schema:
-//  *           type: string
-//  *         description: Хэлтэс
-//  *     responses:
-//  *       200:
-//  *         description: Амжилттай
-//  */
-// router.get('/report', auth, c.getReport);
-
-// /**
-//  * @swagger
-//  * /api/violations/report/export/excel:
-//  *   get:
-//  *     tags: [Violations]
-//  *     summary: Excel экспорт
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: query
-//  *         name: year
-//  *         schema:
-//  *           type: integer
-//  *       - in: query
-//  *         name: quarter
-//  *         schema:
-//  *           type: string
-//  *       - in: query
-//  *         name: department
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: Excel файл буцаана
-//  *         content:
-//  *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
-//  *             schema:
-//  *               type: string
-//  *               format: binary
-//  */
-// router.get('/report/export/excel', auth, c.exportExcel);
-
-// /**
-//  * @swagger
-//  * /api/violations/report/export/pdf:
-//  *   get:
-//  *     tags: [Violations]
-//  *     summary: PDF экспорт
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: query
-//  *         name: year
-//  *         schema:
-//  *           type: integer
-//  *       - in: query
-//  *         name: quarter
-//  *         schema:
-//  *           type: string
-//  *       - in: query
-//  *         name: department
-//  *         schema:
-//  *           type: string
-//  *     responses:
-//  *       200:
-//  *         description: HTML/PDF файл буцаана
-//  *         content:
-//  *           text/html:
-//  *             schema:
-//  *               type: string
-//  */
-// router.get('/report/export/pdf', auth, c.exportPdf);
-
 /**
  * @swagger
  * /api/violations:
@@ -152,15 +59,20 @@ router.get('/stats', auth, c.getGeneralStats);
  *         description: Амжилттай
  *   post:
  *     tags: [Violations]
- *     summary: Шинэ зөрчил гараар бүртгэх
+ *     summary: Шинэ зөрчил баримтын зургийн хамт бүртгэх
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - group_number
+ *               - year
+ *               - quarter
+ *               - rating
  *             properties:
  *               group_number:
  *                 type: string
@@ -174,108 +86,19 @@ router.get('/stats', auth, c.getGeneralStats);
  *               rating:
  *                 type: string
  *                 example: "Бага"
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Зөрчлийн баримт зураг эсвэл PDF (Сонголттой)
  *               violations:
- *                 type: array
- *                 items:
- *                   type: object
+ *                 type: string
+ *                 description: Зөрчлийн дэд жагсаалт (JSON Стринг хэлбэрээр)
  *     responses:
  *       201:
  *         description: Амжилттай бүртгэгдлээ
  */
 router.get('/', auth, c.getAllViolations);
-router.post('/', auth, c.createViolation);
-
-// /**
-//  * @swagger
-//  * /api/violations/import:
-//  *   post:
-//  *     tags: [Violations]
-//  *     summary: Excel файлаас импортлох
-//  *     security:
-//  *       - bearerAuth: []
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         multipart/form-data:
-//  *           schema:
-//  *             type: object
-//  *             properties:
-//  *               file:
-//  *                 type: string
-//  *                 format: binary
-//  *               group_number:
-//  *                 type: string
-//  *               year:
-//  *                 type: integer
-//  *               quarter:
-//  *                 type: string
-//  *               rating:
-//  *                 type: string
-//  *     responses:
-//  *       201:
-//  *         description: Амжилттай импортлогдлоо
-//  */
-// router.post('/import', auth, c.importFromExcel);
-
-// /**
-//  * @swagger
-//  * /api/violations/{id}:
-//  *   get:
-//  *     tags: [Violations]
-//  *     summary: Нэг зөрчлийг ID-аар авах
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     responses:
-//  *       200:
-//  *         description: Амжилттай
-//  *       404:
-//  *         description: Олдсонгүй
-//  *   put:
-//  *     tags: [Violations]
-//  *     summary: Зөрчил засах
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     requestBody:
-//  *       required: true
-//  *       content:
-//  *         application/json:
-//  *           schema:
-//  *             type: object
-//  *     responses:
-//  *       200:
-//  *         description: Амжилттай шинэчлэгдлээ
-//  *   delete:
-//  *     tags: [Violations]
-//  *     summary: Зөрчил устгах
-//  *     security:
-//  *       - bearerAuth: []
-//  *     parameters:
-//  *       - in: path
-//  *         name: id
-//  *         required: true
-//  *         schema:
-//  *           type: integer
-//  *     responses:
-//  *       200:
-//  *         description: Амжилттай устгагдлаа
-//  *       404:
-//  *         description: Олдсонгүй
-//  */
-// router.get('/:id', auth, c.getViolationById);
-// router.put('/:id', auth, c.updateViolation);
-// router.delete('/:id', auth, c.deleteViolation);
+router.post('/', auth, upload.single("file"), c.createViolation);
 
 /**
  * @swagger
@@ -307,16 +130,6 @@ router.post('/', auth, c.createViolation);
  *     responses:
  *       200:
  *         description: Амжилттай хуулагдлаа
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 file_url:
- *                   type: string
- *                   example: "https://res.cloudinary.com/..."
  *       400:
  *         description: Файл илгээгдээгүй
  *

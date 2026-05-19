@@ -14,7 +14,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'audit_evidences', // Cloudinary дээр үүсэх хавтасны нэр
-    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf'],
+    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'jfif'],
   },
 });
 

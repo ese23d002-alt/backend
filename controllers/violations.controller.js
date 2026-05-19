@@ -258,19 +258,40 @@ exports.exportPdf = async (req, res) => {
     }
 };
 
-// 4. ГАРААР БҮРТГЭХ
+// 🚀 4. ГАРААР БҮРТГЭХ (ЗАСВАР ОРСОН ХЭСЭГ - ФАЙЛЫГ АВТОМАТАР ХАДГАЛНА)
 exports.createViolation = async (req, res) => {
     try {
-        const { group_number, year, quarter, rating, violations } = req.body;
+        const { group_number, year, quarter, rating } = req.body;
+        let { violations } = req.body;
+
+        // FormData-аар жагсаалт нь Стринг болж ирдэг тул объект руу хөрвүүлнэ
+        if (typeof violations === 'string') {
+            violations = JSON.parse(violations);
+        }
+
+        // 1. Эхлээд Зөрчлийн Бүлгийг үүсгэнэ
         const group = await ViolationGroup.create({ group_number, year, quarter, rating });
 
+        // 2. Хэрэв дэд зөрчлүүд байвал бааз руу хуулна
         if (violations && violations.length > 0) {
-            const data = violations.map(v => ({ ...v, group_id: group.id }));
+            const data = violations.map((v, index) => {
+                const item = { ...v, group_id: group.id };
+                
+                // 🔥 УХААЛАГ АВТОМАТ ЛОГИК: Хэрэв хэрэглэгч файл хавсаргасан бол
+                // Хамгийн эхний (index === 0) зөрчил дээр Cloudinary URL-ийг автоматаар зоож өгнө
+                if (req.file && index === 0) {
+                    item.evidence_file = req.file.path;
+                }
+                return item;
+            });
+            
             await Violation.bulkCreate(data);
         }
-        res.status(201).json({ success: true });
+        
+        res.status(201).json({ success: true, message: "Зөрчил болон баримт амжилттай бүртгэгдлээ." });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Create Violation Error:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
 };
 
@@ -368,9 +389,10 @@ exports.getReport = async (req, res) => {
     }
 };
 
+// 9. СУУРЬ ФАЙЛ ХУУЛАХ (Дангаар нь дуудахад ажиллана)
 exports.uploadFile = async (req, res) => {
   try {
-    console.log("📁 req.file:", req.file); // ← юу ирж байгааг харна
+    console.log("📁 req.file:", req.file);
     if (!req.file) return res.status(400).json({ success: false, message: "Файл илгээгдээгүй." });
 
     const result_url = req.file.path;
@@ -383,12 +405,12 @@ exports.uploadFile = async (req, res) => {
 
     res.json({ success: true, file_url: result_url });
   } catch (error) {
-    console.error("❌ uploadFile алдаа:", error); // ← дэлгэрэнгүй алдаа
+    console.error("❌ uploadFile алдаа:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// ✅ 10. ЗУРАГ / ФАЙЛ УСТГАХ (Cloudinary)
+// 10. ЗУРАГ / ФАЙЛ УСТГАХ (Cloudinary)
 exports.deleteFile = async (req, res) => {
     try {
         const { id } = req.params;
@@ -398,10 +420,9 @@ exports.deleteFile = async (req, res) => {
             return res.status(404).json({ success: false, message: "Файл олдсонгүй." });
         }
 
-        // Cloudinary-с public_id гаргаж устгана
         const public_id = violation.evidence_file
-            .split("/").slice(-2).join("/")   // "violations/filename"
-            .replace(/\.[^.]+$/, "");         // өргөтгөл хасна
+            .split("/").slice(-2).join("/")   
+            .replace(/\.[^.]+$/, "");         
 
         await cloudinary.uploader.destroy(public_id);
 
