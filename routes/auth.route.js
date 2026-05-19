@@ -61,7 +61,7 @@ router.get("/me", authGuard, authController.getMe);
  *         description: Талбар дутуу эсвэл и-мэйл давхардсан
  */
 router.post("/signup", authController.signup);
-
+// TODO: Validation
 /**
  * @swagger
  * /api/auth/login:

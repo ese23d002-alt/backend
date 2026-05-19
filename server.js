@@ -7,8 +7,7 @@ require('dotenv').config();
 
 // 1. Өгөгдлийн сан болон Моделүүдийг импортлох
 const sequelize = require("./db/database");
-const { User, ViolationGroup, Violation } = require("./models/user.model"); 
-const { error } = require('console');
+const { User, ViolationGroup, Violation, Risk } = require("./models/user.model"); // ✅ Risk нэмэгдлээ
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,7 +24,7 @@ const swaggerOptions = {
     },
     servers: [
       { url: `http://localhost:${PORT}`, description: 'Локал' },
-      { url: `http://${HOST}:${PORT}`, description: 'Сүлжээ' }
+      { url: `http://${HOST}:${PORT}`,   description: 'Сүлжээ' }
     ],
     components: {
       securitySchemes: {
@@ -43,39 +42,55 @@ const swaggerOptions = {
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
-// --- Middleware ---
+// --- Middleware (Дараалал чухал!) ---
 app.use(cors({
   origin: [
     'http://localhost:5173',
+    'http://127.0.0.1:5173',
     'http://192.168.160.119:5173',
     'http://10.20.19.20:5173'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('frontend'));  
+
+app.use(express.json());         // ✅ 1-р: JSON задлагч
+app.use(express.urlencoded({ extended: true })); // ✅ 2-р: URL задлагч
+app.use(express.static('frontend'));             // ✅ 3-р: Статик файлууд
+
+// ✅ JSON алдаа барих middleware — express.json() -НЫ ДАРАА байх ёстой
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error("❌ Ирсэн датаны JSON бүтэц эвдэрсэн байна (Malformed JSON)!");
+    return res.status(400).json({
+      success: false,
+      message: "Илгээсэн датаны JSON формат буруу байна. Хашилт, таслал эсвэл тусгай тэмдэгтүүдээ шалгана уу!"
+    });
+  }
+  next();
+});
 
 // --- Маршрутууд (Routes) ---
 app.get('/', (req, res) => {
   res.json({ message: "Server is running", swagger: "/api-docs" });
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
-app.use('/api/auth', require('./routes/auth.route'));
+app.use('/api-docs',       swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use('/api/auth',       require('./routes/auth.route'));
 app.use('/api/violations', require('./routes/violations.route'));
-app.use('/api/email', require('./routes/email.route'));
+app.use('/api/email',      require('./routes/email.route'));
+app.use('/api/risks', require('./routes/risk.route'));
 
-// --- Алдаа барих Middleware ---
+// --- Ерөнхий алдаа барих Middleware (хамгийн сүүлд!) ---
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Сервер дээр алдаа гарлаа!' });
-}); 
+});
 
 // --- Серверийг асаах ---
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server: http://localhost:${PORT}`);
-  console.log(`Server: http://${HOST}:${PORT}`);
-  console.log(`Swagger: http://${HOST}:${PORT}/api-docs`);
-}); 
+  console.log(`\n🚀 Backend сервер амжилттай аслаа!`);
+  console.log(`➜ Local:   http://localhost:${PORT}`);
+  console.log(`➜ Network: http://${HOST}:${PORT}`);
+  console.log(`➜ Swagger: http://${HOST}:${PORT}/api-docs\n`);
+});

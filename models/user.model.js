@@ -11,35 +11,38 @@ const User = sequelize.define("User", {
     reset_password_expires: { type: DataTypes.DATE }
 }, { underscored: true, tableName: 'users' });
 
-// 2. Зөрчлийн Групп (Дугаар, Жил, Улирал, Үнэлгээ)
+// 2. Зөрчлийн Групп
 const ViolationGroup = sequelize.define("ViolationGroup", {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    group_number: { type: DataTypes.STRING, allowNull: false }, // ЗД-2026-001
-    year: { type: DataTypes.INTEGER, allowNull: false },        // 2026
-    quarter: { type: DataTypes.STRING, allowNull: false },      // "I улирал" (Зураг дээрхтэй тааруулав)
-    rating: { type: DataTypes.STRING }                          // Бага, Дунд, Их
+    group_number: { type: DataTypes.STRING, allowNull: false },
+    year: { type: DataTypes.INTEGER, allowNull: false },
+    quarter: { type: DataTypes.STRING, allowNull: false },
+    rating: { type: DataTypes.STRING }
 }, { underscored: true, tableName: 'violation_groups' });
 
 // 3. Зөрчил ба Арга хэмжээ
 const Violation = sequelize.define("Violation", {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    title: { type: DataTypes.STRING, allowNull: false },        // Зөрчлийн нэр
-    description: { type: DataTypes.TEXT },                      // Тайлбар
-    severity: { type: DataTypes.STRING },                       // Эрсдэл
-    department: { type: DataTypes.STRING },                     // Хэлтэс
-    action_plan: { type: DataTypes.TEXT },                      // Авах арга хэмжээ
-    due_date: { type: DataTypes.DATEONLY },                      // Дуусах огноо (Зураг дээрх Date picker)
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT },
+    severity: { type: DataTypes.STRING },
+    department: { type: DataTypes.STRING },
+    action_plan: { type: DataTypes.TEXT },
+    due_date: { type: DataTypes.DATEONLY },
     status: { type: DataTypes.STRING, defaultValue: "Шинэ" },
-    assignee_name: { type: DataTypes.STRING },                  // Хариуцагч
+    assignee_name: { type: DataTypes.STRING },
     assignee_email: { type: DataTypes.STRING },
     manager_name: { type: DataTypes.STRING },
     execution_response: { type: DataTypes.TEXT },
     evidence_file: { type: DataTypes.STRING }
 }, { underscored: true, tableName: 'violations' });
 
-// --- Хамаарал тохируулах (Association) ---
-// Групп устгахад хамааралтай бүх зөрчил хамт устахаар (onDelete: 'CASCADE') тохируулав
+// 4. ✅ Risk — тусдаа файлаас импортлох
+const Risk = require("./risk.models");
+
+// --- Хамаарал ---
 ViolationGroup.hasMany(Violation, { as: "violations", foreignKey: "group_id", onDelete: 'CASCADE' });
 Violation.belongsTo(ViolationGroup, { as: "group", foreignKey: "group_id" });
 
-module.exports = { User, ViolationGroup, Violation };
+// ✅ Нэг л module.exports
+module.exports = { User, ViolationGroup, Violation, Risk };
