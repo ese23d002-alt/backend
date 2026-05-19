@@ -46,7 +46,7 @@ const risks = require("../controllers/risk.controller.js");
  *           example: 5
  *         current_control:
  *           type: string
- *           example: "Түрүүчийн UPS төхөөрөмж"
+ *           example: "ТUPS төхөөрөмж"
  *         action_plan:
  *           type: string
  *           example: "Нэмэлт үүсгүүр худалдаж авах"
