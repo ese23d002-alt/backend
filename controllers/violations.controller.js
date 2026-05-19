@@ -1,6 +1,13 @@
 const { ViolationGroup, Violation } = require("../models/user.model");
 const xlsx = require('xlsx');
 const { Sequelize, Op } = require("sequelize");
+const cloudinary = require("cloudinary").v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // 1. DASHBOARD-ИЙН СТАТИСТИК
 exports.getGeneralStats = async (req, res) => {
@@ -114,6 +121,7 @@ exports.getAllViolations = async (req, res) => {
         res.status(500).json({ message: "Жагсаалт авахад алдаа гарлаа." });
     }
 };
+
 // EXCEL ЭКСПОРТ
 exports.exportExcel = async (req, res) => {
     try {
@@ -192,7 +200,6 @@ exports.exportPdf = async (req, res) => {
 
         const allViolations = groups.flatMap(g => g.violations || []);
 
-        // HTML загвар үүсгэх
         const rows = allViolations.map((v, i) => {
             const group = groups.find(g => g.id === v.group_id);
             return `
@@ -291,35 +298,20 @@ exports.updateViolation = async (req, res) => {
 };
 
 // 7. ЗӨРЧИЛ УСТГАХ
-
 exports.deleteViolation = async (req, res) => {
     try {
         const { id } = req.params;
+        const deleted_count = await ViolationGroup.destroy({ where: { id } });
 
-        // 1. Устгахын өмнө тухайн объект байгаа эсэхийг шалгах (Сонголттой)
-        const deletedCount = await ViolationGroup.destroy({
-            where: { id: id }
-        });
-
-
-
-        if (deletedCount === 0) {
-            return res.status(404).json({
-                success: false,
-                message: "Устгах өгөгдөл олдсонгүй."
-            });
+        if (deleted_count === 0) {
+            return res.status(404).json({ success: false, message: "Устгах өгөгдөл олдсонгүй." });
         }
-
-
 
         res.json({ success: true, message: "Амжилттай устгагдлаа." });
     } catch (error) {
-        // 'error. Message' биш 'error.message' (жижиг m)
         res.status(500).json({ success: false, error: error.message });
     }
 };
-
-
 
 // 8. ТАЙЛАНГИЙН ӨГӨГДӨЛ АВАХ
 exports.getReport = async (req, res) => {
@@ -347,17 +339,17 @@ exports.getReport = async (req, res) => {
         const allViolations = groups.flatMap(g => g.violations || []);
 
         const stats = {
-            total: allViolations.length,
-            new: allViolations.filter(v => v.status === 'new').length,
-            pending: allViolations.filter(v => v.status === 'pending').length,
+            total:    allViolations.length,
+            new:      allViolations.filter(v => v.status === 'new').length,
+            pending:  allViolations.filter(v => v.status === 'pending').length,
             resolved: allViolations.filter(v => v.status === 'resolved').length,
             critical: allViolations.filter(v => v.severity === 'critical').length,
-            high: allViolations.filter(v => v.severity === 'high').length,
-            medium: allViolations.filter(v => v.severity === 'medium').length,
-            low: allViolations.filter(v => v.severity === 'low').length,
+            high:     allViolations.filter(v => v.severity === 'high').length,
+            medium:   allViolations.filter(v => v.severity === 'medium').length,
+            low:      allViolations.filter(v => v.severity === 'low').length,
         };
 
-        const byDepartment = allViolations.reduce((acc, v) => {
+        const by_department = allViolations.reduce((acc, v) => {
             const dep = v.department || 'Тодорхойгүй';
             acc[dep] = (acc[dep] || 0) + 1;
             return acc;
@@ -366,12 +358,60 @@ exports.getReport = async (req, res) => {
         res.json({
             success: true,
             stats,
-            byDepartment,
+            by_department,
             groups,
             violations: allViolations
         });
     } catch (error) {
         console.error("Report Error:", error);
         res.status(500).json({ message: "Тайлан авахад алдаа гарлаа.", error: error.message });
+    }
+};
+
+exports.uploadFile = async (req, res) => {
+  try {
+    console.log("📁 req.file:", req.file); // ← юу ирж байгааг харна
+    if (!req.file) return res.status(400).json({ success: false, message: "Файл илгээгдээгүй." });
+
+    const result_url = req.file.path;
+    console.log("✅ Cloudinary URL:", result_url);
+
+    await Violation.update(
+      { evidence_file: result_url },
+      { where: { id: req.params.id } }
+    );
+
+    res.json({ success: true, file_url: result_url });
+  } catch (error) {
+    console.error("❌ uploadFile алдаа:", error); // ← дэлгэрэнгүй алдаа
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// ✅ 10. ЗУРАГ / ФАЙЛ УСТГАХ (Cloudinary)
+exports.deleteFile = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const violation = await Violation.findByPk(id);
+
+        if (!violation || !violation.evidence_file) {
+            return res.status(404).json({ success: false, message: "Файл олдсонгүй." });
+        }
+
+        // Cloudinary-с public_id гаргаж устгана
+        const public_id = violation.evidence_file
+            .split("/").slice(-2).join("/")   // "violations/filename"
+            .replace(/\.[^.]+$/, "");         // өргөтгөл хасна
+
+        await cloudinary.uploader.destroy(public_id);
+
+        await Violation.update(
+            { evidence_file: null },
+            { where: { id } }
+        );
+
+        res.json({ success: true, message: "Файл амжилттай устгагдлаа." });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 };
