@@ -5,7 +5,7 @@ const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_key:     process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
@@ -82,7 +82,7 @@ exports.importFromExcel = async (req, res) => {
     }
 };
 
-// 3. БҮХ ЗӨРЧЛИЙГ ЖАГСААЛТААР АВАХ
+// 3. БҮХ ЗӨРЧЛИЙГ ЖАГСААЛТААР АВАХ (Зургийн JSON-ийг Объект болгож буцаана)
 exports.getAllViolations = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -109,12 +109,28 @@ exports.getAllViolations = async (req, res) => {
             distinct: true
         });
 
+        // Баазаас уншихдаа evidence_file стринг байвал буцаагаад JSON Объект болгоно
+        const formattedRows = rows.map(g => {
+            const groupObj = g.toJSON();
+            if (groupObj.violations) {
+                groupObj.violations = groupObj.violations.map(v => {
+                    try {
+                        v.evidence_file = JSON.parse(v.evidence_file);
+                    } catch (e) {
+                        // Текст хэвээрээ байвал хэвээр нь үлдээнэ
+                    }
+                    return v;
+                });
+            }
+            return groupObj;
+        });
+
         res.json({
             success: true,
             totalItems: count,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            data: rows
+            data: formattedRows
         });
     } catch (error) {
         console.error("GetAll Error:", error);
@@ -122,7 +138,7 @@ exports.getAllViolations = async (req, res) => {
     }
 };
 
-// EXCEL ЭКСПОРТ
+// 4. EXCEL ЭКСПОРТ
 exports.exportExcel = async (req, res) => {
     try {
         const { quarter, year, department } = req.query;
@@ -146,19 +162,30 @@ exports.exportExcel = async (req, res) => {
         });
 
         const allViolations = groups.flatMap(g =>
-            (g.violations || []).map(v => ({
-                'Бүлгийн дугаар': g.group_number,
-                'Жил': g.year,
-                'Улирал': g.quarter,
-                'Зөрчлийн нэр': v.title,
-                'Тайлбар': v.description || '',
-                'Хэлтэс': v.department || '',
-                'Түвшин': v.severity,
-                'Төлөв': v.status,
-                'Хариуцагч': v.assignee_name || '',
-                'Арга хэмжээ': v.action_plan || '',
-                'Дуусах огноо': v.due_date ? v.due_date.toString().split('T')[0] : '',
-            }))
+            (g.violations || []).map(v => {
+                let fileLink = "";
+                try {
+                    const parsed = JSON.parse(v.evidence_file);
+                    fileLink = parsed.secure_url || parsed.url || v.evidence_file;
+                } catch (e) {
+                    fileLink = v.evidence_file || "";
+                }
+
+                return {
+                    'Бүлгийн дугаар': g.group_number,
+                    'Жил': g.year,
+                    'Улирал': g.quarter,
+                    'Зөрчлийн нэр': v.title,
+                    'Тайлбар': v.description || '',
+                    'Хэлтэс': v.department || '',
+                    'Түвшин': v.severity,
+                    'Төлөв': v.status,
+                    'Хариуцагч': v.assignee_name || '',
+                    'Арга хэмжээ': v.action_plan || '',
+                    'Дуусах огноо': v.due_date ? v.due_date.toString().split('T')[0] : '',
+                    'Зургийн линк': fileLink
+                };
+            })
         );
 
         const wb = xlsx.utils.book_new();
@@ -258,37 +285,62 @@ exports.exportPdf = async (req, res) => {
     }
 };
 
-// 🚀 4. ГАРААР БҮРТГЭХ (ЗАСВАР ОРСОН ХЭСЭГ - ФАЙЛЫГ АВТОМАТАР ХАДГАЛНА)
+// 🚀 4. ШИНЭЧИЛСЭН ГАРААР БҮРТГЭХ (Бүтэн JSON объектыг баазад хадгална)
 exports.createViolation = async (req, res) => {
     try {
-        const { group_number, year, quarter, rating } = req.body;
-        let { violations } = req.body;
+        const { group_number, year, quarter, rating, violations } = req.body;
 
-        // FormData-аар жагсаалт нь Стринг болж ирдэг тул объект руу хөрвүүлнэ
-        if (typeof violations === 'string') {
-            violations = JSON.parse(violations);
-        }
-
-        // 1. Эхлээд Зөрчлийн Бүлгийг үүсгэнэ
         const group = await ViolationGroup.create({ group_number, year, quarter, rating });
 
-        // 2. Хэрэв дэд зөрчлүүд байвал бааз руу хуулна
+        let savedViolations = [];
+
         if (violations && violations.length > 0) {
-            const data = violations.map((v, index) => {
-                const item = { ...v, group_id: group.id };
-                
-                // 🔥 УХААЛАГ АВТОМАТ ЛОГИК: Хэрэв хэрэглэгч файл хавсаргасан бол
-                // Хамгийн эхний (index === 0) зөрчил дээр Cloudinary URL-ийг автоматаар зоож өгнө
-                if (req.file && index === 0) {
-                    item.evidence_file = req.file.path;
+            const parsedViolations = typeof violations === 'string' ? JSON.parse(violations) : violations;
+
+            const data = parsedViolations.map(v => {
+                let evidenceData = null;
+
+                // 🔥 Хэрэв Frontend-ээс зургийн бүтэн объект ирвэл Стринг болгоно
+                if (v.evidence_file && typeof v.evidence_file === 'object') {
+                    evidenceData = JSON.stringify(v.evidence_file);
+                } else if (v.evidence_file) {
+                    evidenceData = v.evidence_file;
                 }
-                return item;
+
+                return {
+                    title: v.title || 'Нэргүй зөрчил',
+                    description: v.description || '',
+                    severity: v.severity || rating || 'low',
+                    status: v.status || 'new',
+                    department: v.department || '',
+                    action_plan: v.action_plan || '',
+                    assignee_name: v.assignee_name || '',
+                    due_date: v.due_date || null,
+                    group_id: group.id,
+                    evidence_file: evidenceData
+                };
             });
             
-            await Violation.bulkCreate(data);
+            savedViolations = await Violation.bulkCreate(data);
         }
         
-        res.status(201).json({ success: true, message: "Зөрчил болон баримт амжилттай бүртгэгдлээ." });
+        // Буцаахдаа объект хэлбэрээр гоё болгож буцаана
+        const formattedViolations = savedViolations.map(v => {
+            const item = v.toJSON();
+            try {
+                item.evidence_file = JSON.parse(item.evidence_file);
+            } catch (e) {}
+            return item;
+        });
+
+        res.status(201).json({ 
+            success: true, 
+            message: "Зөрчил болон баримт амжилттай бүртгэгдлээ.",
+            data: {
+                group: group,
+                violations: formattedViolations
+            }
+        });
     } catch (error) {
         console.error("Create Violation Error:", error);
         res.status(500).json({ success: false, error: error.message });
@@ -302,7 +354,15 @@ exports.getViolationById = async (req, res) => {
             include: [{ model: Violation, as: 'violations' }]
         });
         if (!data) return res.status(404).json({ message: "Олдсонгүй." });
-        res.json(data);
+        
+        const groupObj = data.toJSON();
+        if (groupObj.violations) {
+            groupObj.violations = groupObj.violations.map(v => {
+                try { v.evidence_file = JSON.parse(v.evidence_file); } catch (e) {}
+                return v;
+            });
+        }
+        res.json(groupObj);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -311,7 +371,11 @@ exports.getViolationById = async (req, res) => {
 // 6. ЗӨРЧИЛ ЗАСАХ
 exports.updateViolation = async (req, res) => {
     try {
-        await Violation.update(req.body, { where: { id: req.params.id } });
+        let updateData = { ...req.body };
+        if (updateData.evidence_file && typeof updateData.evidence_file === 'object') {
+            updateData.evidence_file = JSON.stringify(updateData.evidence_file);
+        }
+        await Violation.update(updateData, { where: { id: req.params.id } });
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -359,18 +423,24 @@ exports.getReport = async (req, res) => {
 
         const allViolations = groups.flatMap(g => g.violations || []);
 
+        const formattedViolations = allViolations.map(v => {
+            const item = v.toJSON();
+            try { item.evidence_file = JSON.parse(item.evidence_file); } catch (e) {}
+            return item;
+        });
+
         const stats = {
-            total:    allViolations.length,
-            new:      allViolations.filter(v => v.status === 'new').length,
-            pending:  allViolations.filter(v => v.status === 'pending').length,
-            resolved: allViolations.filter(v => v.status === 'resolved').length,
-            critical: allViolations.filter(v => v.severity === 'critical').length,
-            high:     allViolations.filter(v => v.severity === 'high').length,
-            medium:   allViolations.filter(v => v.severity === 'medium').length,
-            low:      allViolations.filter(v => v.severity === 'low').length,
+            total:    formattedViolations.length,
+            new:      formattedViolations.filter(v => v.status === 'new').length,
+            pending:  formattedViolations.filter(v => v.status === 'pending').length,
+            resolved: formattedViolations.filter(v => v.status === 'resolved').length,
+            critical: formattedViolations.filter(v => v.severity === 'critical').length,
+            high:     formattedViolations.filter(v => v.severity === 'high').length,
+            medium:   formattedViolations.filter(v => v.severity === 'medium').length,
+            low:      formattedViolations.filter(v => v.severity === 'low').length,
         };
 
-        const by_department = allViolations.reduce((acc, v) => {
+        const by_department = formattedViolations.reduce((acc, v) => {
             const dep = v.department || 'Тодорхойгүй';
             acc[dep] = (acc[dep] || 0) + 1;
             return acc;
@@ -381,7 +451,7 @@ exports.getReport = async (req, res) => {
             stats,
             by_department,
             groups,
-            violations: allViolations
+            violations: formattedViolations
         });
     } catch (error) {
         console.error("Report Error:", error);
@@ -392,15 +462,17 @@ exports.getReport = async (req, res) => {
 // 9. СУУРЬ ФАЙЛ ХУУЛАХ (Дангаар нь дуудахад ажиллана)
 exports.uploadFile = async (req, res) => {
   try {
-    console.log("📁 req.file:", req.file);
     if (!req.file) return res.status(400).json({ success: false, message: "Файл илгээгдээгүй." });
 
+    const { id } = req.params;
+    const violation = await Violation.findByPk(id);
+    if (!violation) return res.status(404).json({ success: false, message: "Зөрчил олдсонгүй." });
+
     const result_url = req.file.path;
-    console.log("✅ Cloudinary URL:", result_url);
 
     await Violation.update(
       { evidence_file: result_url },
-      { where: { id: req.params.id } }
+      { where: { id } }
     );
 
     res.json({ success: true, file_url: result_url });
@@ -410,22 +482,42 @@ exports.uploadFile = async (req, res) => {
   }
 };
 
-// 10. ЗУРАГ / ФАЙЛ УСТГАХ (Cloudinary)
+// 🚀 10. УХААЛАГ ЗУРАГ / ФАЙЛ УСТГАХ (JSON дотроос public_id уншина)
 exports.deleteFile = async (req, res) => {
     try {
         const { id } = req.params;
         const violation = await Violation.findByPk(id);
 
-        if (!violation || !violation.evidence_file) {
-            return res.status(404).json({ success: false, message: "Файл олдсонгүй." });
+        // Хамгаалалт 1: Зөрчил баазад байхгүй бол 404 өгнө (Унахгүй)
+        if (!violation) {
+            return res.status(404).json({ success: false, message: "Ийм ID-тай зөрчил олдсонгүй." });
         }
 
-        const public_id = violation.evidence_file
-            .split("/").slice(-2).join("/")   
-            .replace(/\.[^.]+$/, "");         
+        // Хамгаалалт 2: Хэрэв файл нь аль хэдийн хоосон бол шууд амжилттай буцна
+        if (!violation.evidence_file) {
+            return res.status(444).json({ success: false, message: "Файл аль хэдийн устсан эсвэл хоосон байна." });
+        }
 
-        await cloudinary.uploader.destroy(public_id);
+        let public_id = null;
 
+        try {
+            // Баазаас ирсэн өгөгдлийг JSON объект мөн эсэхийг шалгана
+            const fileObj = JSON.parse(violation.evidence_file);
+            if (fileObj && fileObj.public_id) {
+                public_id = fileObj.public_id; // 🔥 Frontend-ийн явуулсан объектоос шууд авлаа!
+            }
+        } catch (e) {
+            // Хэрэв хуучин дата буюу цэвэр стринг URL байвал split хийж авна
+            public_id = violation.evidence_file.split("/").slice(-2).join("/").replace(/\.[^.]+$/, "");
+        }
+
+        // Cloudinary-аас устгах
+        if (public_id) {
+            console.log(" Cloudinary-аас устгаж буй public_id:", public_id);
+            await cloudinary.uploader.destroy(public_id);
+        }
+
+        // Баазад талбарыг null болгож шинэчлэх
         await Violation.update(
             { evidence_file: null },
             { where: { id } }
@@ -433,6 +525,7 @@ exports.deleteFile = async (req, res) => {
 
         res.json({ success: true, message: "Файл амжилттай устгагдлаа." });
     } catch (error) {
+        console.error(" deleteFile алдаа:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 };

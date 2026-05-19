@@ -34,15 +34,32 @@ const Violation = sequelize.define("Violation", {
     assignee_email: { type: DataTypes.STRING },
     manager_name: { type: DataTypes.STRING },
     execution_response: { type: DataTypes.TEXT },
-    evidence_file: { type: DataTypes.STRING }
+    evidence_file: { type: DataTypes.STRING } // Хуучин талбар хэвээрээ үлдэнэ (Хэрэв нэг линкээр хадгалах бол)
 }, { underscored: true, tableName: 'violations' });
 
-// 4. ✅ Risk — тусдаа файлаас импортлох
+// 🆕 4. ШИНЭ ЗУРГИЙН ХҮСНЭГТ (Олон зураг хадгалах зориулалттай)
+const ViolationImage = sequelize.define("ViolationImage", {
+    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    image_data: { 
+        type: DataTypes.TEXT, 
+        allowNull: false,
+        comment: "Cloudinary-аас ирэх бүтэн JSON объект стрингээр хадгалагдана"
+    }
+}, { underscored: true, tableName: 'violation_images' });
+
+// 5. ✅ Risk — тусдаа файлаас импортлох
 const Risk = require("./risk.models");
 
-// --- Хамаарал ---
+// --- Хамаарал (Associations) ---
+
+// Групп болон Зөрчлийн холбоос
 ViolationGroup.hasMany(Violation, { as: "violations", foreignKey: "group_id", onDelete: 'CASCADE' });
 Violation.belongsTo(ViolationGroup, { as: "group", foreignKey: "group_id" });
 
-// ✅ Нэг л module.exports
-module.exports = { User, ViolationGroup, Violation, Risk };
+// 🔥 ШИНЭ: Зөрчил болон Зургийн холбоос (One-to-Many буюу 1 зөрчил олон зурагтай байж болно)
+Violation.hasMany(ViolationImage, { as: "images", foreignKey: "violation_id", onDelete: 'CASCADE' });
+ViolationImage.belongsTo(Violation, { as: "violation", foreignKey: "violation_id" });
+
+
+// ✅ Нэг л module.exports (Шинэ модел болох ViolationImage-ийг нэмж экспортоллоо)
+module.exports = { User, ViolationGroup, Violation, ViolationImage, Risk };
