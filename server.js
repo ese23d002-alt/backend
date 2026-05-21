@@ -89,7 +89,7 @@ app.use((err, req, res, next) => {
 
 // --- 🔥 Өгөгдлийн санг холбож, бүтэцийг шинэчлэх (Alter) ---
 // Энэ үйлдэл нь image_url баганыг нэмж, нөгөө хассан 2 баганыг MySQL дээрээс устгана
-sequelize.sync({ alter: true }) 
+sequelize.sync({ alter: false }) 
   .then(() => {
     
     // --- Серверийг асаах (Бааз бэлэн болсны дараа) ---

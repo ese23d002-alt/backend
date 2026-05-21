@@ -103,10 +103,10 @@ router.post('/', auth, upload.single("file"),    c.createViolation);
 
 /**
  * @swagger
- * /api/violations/{id}/file:
+ * /api/violations/{id}:
  *   delete:
  *     tags: [Violations]
- *     summary: Зөрчлийн зураг устгах (image_url баганаас Cloudinary-д устгаад null болгоно)
+ *     summary: Зөрчлийг бүрэн устгах (Cloudinary зураг хамт устгана)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -118,11 +118,9 @@ router.post('/', auth, upload.single("file"),    c.createViolation);
  *     responses:
  *       200:
  *         description: Амжилттай устгагдлаа
- *       400:
- *         description: Устгах зураг байхгүй
  *       404:
  *         description: Зөрчил олдсонгүй
  */
-router.delete("/:id/file", auth, c.deleteFile);
+router.delete("/:id", auth, c.deleteViolation);
 
 module.exports = router;

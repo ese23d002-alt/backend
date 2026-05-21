@@ -401,18 +401,37 @@ exports.updateViolation = async (req, res) => {
     }
 };
 
-// 9. ЗӨРЧИЛ УСТГАХ
+// 9. ЗӨРЧИЛ УСТГАХ (Cloudinary зургуудыг хамт устгана)
 exports.deleteViolation = async (req, res) => {
     try {
         const { id } = req.params;
-        const deleted_count = await ViolationGroup.destroy({ where: { id } });
 
-        if (deleted_count === 0) {
+        const group = await ViolationGroup.findByPk(id, {
+            include: [{ model: Violation, as: 'violations' }]
+        });
+
+        if (!group) {
             return res.status(404).json({ success: false, message: "Устгах өгөгдөл олдсонгүй." });
         }
 
-        res.json({ success: true, message: "Амжилттай устгагдлаа." });
+        // Cloudinary-аас зургуудыг устгах
+        for (const v of group.violations || []) {
+            if (!v.image_urls) continue;
+            try {
+                const fileObj = JSON.parse(v.image_urls);
+                if (fileObj?.public_id) {
+                    await cloudinary.uploader.destroy(fileObj.public_id);
+                }
+            } catch (e) {
+                // Цэвэр URL байвал алгасна
+            }
+        }
+
+        await group.destroy();
+
+        res.json({ success: true, message: "Зөрчил болон зураг амжилттай устгагдлаа." });
     } catch (error) {
+        console.error("deleteViolation алдаа:", error);
         res.status(500).json({ success: false, error: error.message });
     }
 };
@@ -477,42 +496,5 @@ exports.getReport = async (req, res) => {
     } catch (error) {
         console.error("Report Error:", error);
         res.status(500).json({ message: "Тайлан авахад алдаа гарлаа.", error: error.message });
-    }
-};
-
-// 11. ЗУРАГ УСТГАХ (image_urls баганаас Cloudinary-д устгаад null болгоно)
-exports.deleteFile = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const violation = await Violation.findByPk(id);
-
-        if (!violation) {
-            return res.status(404).json({ success: false, message: "Ийм ID-тай зөрчил олдсонгүй." });
-        }
-
-        if (!violation.image_urls) {
-            return res.status(400).json({ success: false, message: "Устгах зураг байхгүй байна." });
-        }
-
-        let public_id = null;
-
-        try {
-            const fileObj = JSON.parse(violation.image_urls);
-            if (fileObj?.public_id) public_id = fileObj.public_id;
-        } catch (e) {
-            public_id = violation.image_urls.split("/").slice(-2).join("/").replace(/\.[^.]+$/, "");
-        }
-
-        if (public_id) {
-            console.log("Cloudinary-аас устгаж буй public_id:", public_id);
-            await cloudinary.uploader.destroy(public_id);
-        }
-
-        await Violation.update({ image_urls: null }, { where: { id } });
-
-        res.json({ success: true, message: "Зураг амжилттай устгагдлаа." });
-    } catch (error) {
-        console.error("deleteFile алдаа:", error);
-        res.status(500).json({ success: false, error: error.message });
     }
 };
