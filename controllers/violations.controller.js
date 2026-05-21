@@ -114,6 +114,11 @@ exports.getAllViolations = async (req, res) => {
 
         const formattedRows = rows.map(g => {
             const groupObj = g.toJSON();
+            // Group-ийн files-ийг JSON объект болгоно
+            try {
+                if (groupObj.files) groupObj.files = JSON.parse(groupObj.files);
+            } catch (e) {}
+            // Violation-ийн image_urls-ийг JSON объект болгоно
             if (groupObj.violations) {
                 groupObj.violations = groupObj.violations.map(v => {
                     try {
@@ -288,20 +293,27 @@ exports.createViolation = async (req, res) => {
     try {
         const { group_number, year, quarter, rating, violations } = req.body;
 
-        const group = await ViolationGroup.create({ group_number, year, quarter, rating });
+        // Файлуудыг group-т хадгална
+        let filesData = null;
+        if (req.files && req.files.length > 0) {
+            filesData = JSON.stringify(req.files.map(f => ({
+                public_id:     f.filename,
+                secure_url:    f.path,
+                url:           f.path,
+                original_name: f.originalname,
+                resource_type: f.mimetype.startsWith('video/') ? 'video'
+                             : f.mimetype === 'application/pdf'  ? 'raw'
+                             : 'image',
+                format: f.originalname.split('.').pop()
+            })));
+        }
+
+        const group = await ViolationGroup.create({ group_number, year, quarter, rating, files: filesData });
 
         let savedViolations = [];
 
         if (violations) {
-            // CloudinaryStorage ашиглаж байгаа тул buffer биш path/filename ашиглана
-            let cloudinaryResult = null;
-            if (req.file) {
-                cloudinaryResult = {
-                    public_id:  req.file.filename,
-                    secure_url: req.file.path,
-                    url:        req.file.path
-                };
-            }
+            let cloudinaryResult = null; // violation-д файл хадгалахгүй
 
             let parsedViolations;
             try {
@@ -319,10 +331,7 @@ exports.createViolation = async (req, res) => {
             const data = parsedViolations.map((v, index) => {
                 let imageData = null;
 
-                if (index === 0 && cloudinaryResult) {
-                    // Эхний violation-д upload хийсэн зургийг хадгална
-                    imageData = JSON.stringify(cloudinaryResult);
-                } else if (v.image_urls && typeof v.image_urls === 'object') {
+                if (v.image_urls && typeof v.image_urls === 'object') {
                     imageData = JSON.stringify(v.image_urls);
                 } else if (v.image_urls) {
                     imageData = v.image_urls;
@@ -414,17 +423,18 @@ exports.deleteViolation = async (req, res) => {
             return res.status(404).json({ success: false, message: "Устгах өгөгдөл олдсонгүй." });
         }
 
-        // Cloudinary-аас зургуудыг устгах
-        for (const v of group.violations || []) {
-            if (!v.image_urls) continue;
+        // Group-ийн файлуудыг Cloudinary-аас устгана
+        if (group.files) {
             try {
-                const fileObj = JSON.parse(v.image_urls);
-                if (fileObj?.public_id) {
-                    await cloudinary.uploader.destroy(fileObj.public_id);
+                const files = JSON.parse(group.files);
+                for (const file of files) {
+                    if (file?.public_id) {
+                        await cloudinary.uploader.destroy(file.public_id, {
+                            resource_type: file.resource_type || 'image'
+                        });
+                    }
                 }
-            } catch (e) {
-                // Цэвэр URL байвал алгасна
-            }
+            } catch (e) {}
         }
 
         await group.destroy();

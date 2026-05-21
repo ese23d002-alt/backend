@@ -90,16 +90,18 @@ router.get('/stats', auth, c.getGeneralStats);
  *                 type: string
  *                 description: JSON string болгосон violations массив
  *                 example: '[{"title":"Малгай өмсөөгүй","severity":"medium","department":"Үйлдвэр"}]'
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: Зураг (jpg, jpeg, png) — заавал биш
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Файлууд (зураг, PDF, видео) — заавал биш, max 10
  *     responses:
  *       201:
  *         description: Амжилттай бүртгэгдлээ
  */
 router.get('/', auth,                            c.getAllViolations);
-router.post('/', auth, upload.single("file"),    c.createViolation);
+router.post('/', auth, upload.array("files", 10), c.createViolation);
 
 /**
  * @swagger
