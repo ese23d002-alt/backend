@@ -64,7 +64,7 @@ exports.importFromExcel = async (req, res) => {
         });
 
         const violations = data.map(row => ({
-            title: row['Зөрчлийн нэр'] || row['Title'] || 'Нэргүй зөрчил',
+            title: row['Зөрчлийн нэр'] || row['Title'] || 'Нэргүй зөрчил',   
             description: row['Тайлбар'] || row['Description'] || '',
             severity: row['Эрсдэл'] || row['Severity'] || rating || 'low',
             status: row['Төлөв'] || row['Status'] || 'new',

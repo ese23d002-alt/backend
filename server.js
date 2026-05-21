@@ -5,9 +5,9 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 require('dotenv').config();
 
-// 1. Өгөгдлийн сан болон Моделүүдийг импортлох
+// 1. Өгөгдлийн сан болон Моделүүдийг импортлох (Замыг зөв тохируулсан: ./)
 const sequelize = require("./db/database");
-const { User, ViolationGroup, Violation, Risk } = require("./models/user.model"); // ✅ Risk нэмэгдлээ
+const { User, ViolationGroup, Violation, Risk } = require("./models/user.model"); 
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,7 +54,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
-app.use(express.json());         // ✅ 1-р: JSON задлагч
+app.use(express.json());                         // ✅ 1-р: JSON задлагч
 app.use(express.urlencoded({ extended: true })); // ✅ 2-р: URL задлагч
 app.use(express.static('frontend'));             // ✅ 3-р: Статик файлууд
 
@@ -79,7 +79,7 @@ app.use('/api-docs',       swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 app.use('/api/auth',       require('./routes/auth.route'));
 app.use('/api/violations', require('./routes/violations.route'));
 app.use('/api/email',      require('./routes/email.route'));
-app.use('/api/risks', require('./routes/risk.route'));
+app.use('/api/risks',      require('./routes/risk.route'));
 
 // --- Ерөнхий алдаа барих Middleware (хамгийн сүүлд!) ---
 app.use((err, req, res, next) => {
@@ -87,10 +87,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Сервер дээр алдаа гарлаа!' });
 });
 
-// --- Серверийг асаах ---
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Backend сервер амжилттай аслаа!`);
-  console.log(`➜ Local:   http://localhost:${PORT}`);
-  console.log(`➜ Network: http://${HOST}:${PORT}`);
-  console.log(`➜ Swagger: http://${HOST}:${PORT}/api-docs\n`);
-});
+// --- 🔥 Өгөгдлийн санг холбож, бүтэцийг шинэчлэх (Alter) ---
+// Энэ үйлдэл нь image_url баганыг нэмж, нөгөө хассан 2 баганыг MySQL дээрээс устгана
+sequelize.sync({ alter: true }) 
+  .then(() => {
+    
+    // --- Серверийг асаах (Бааз бэлэн болсны дараа) ---
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🚀 Backend сервер амжилттай аслаа!`);
+      console.log(`➜ Local:   http://localhost:${PORT}`);
+      console.log(`➜ Network: http://${HOST}:${PORT}`);
+      console.log(`➜ Swagger: http://${HOST}:${PORT}/api-docs\n`);
+    });
+  })
+  .catch(err => {
+    console.error("❌ Баазыг шинэчлэх эсвэл холбоход алдаа гарлаа:", err);
+  });
