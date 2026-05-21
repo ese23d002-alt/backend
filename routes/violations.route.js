@@ -59,13 +59,13 @@ router.get('/stats', auth, c.getGeneralStats);
  *         description: Амжилттай
  *   post:
  *     tags: [Violations]
- *     summary: Шинэ зөрчил гараар бүртгэх (Frontend-ээс Cloudinary JSON объект авна)
+ *     summary: Шинэ зөрчил бүртгэх — зурагтай хамт (multipart/form-data)
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -87,78 +87,26 @@ router.get('/stats', auth, c.getGeneralStats);
  *                 type: string
  *                 example: "Бага"
  *               violations:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     title:
- *                       type: string
- *                       example: "Хамгаалалтын малгай өмсөөгүй"
- *                     description:
- *                       type: string
- *                       example: "Талбай дээр малгайгүй явсан зөрчил"
- *                     severity:
- *                       type: string
- *                       example: "medium"
- *                     status:
- *                       type: string
- *                       example: "new"
- *                     department:
- *                       type: string
- *                       example: "Үйлдвэр"
- *                     evidence_file:
- *                       type: object
- *                       description: Cloudinary-аас ирсэн бүтэн объект
- *                       example:
- *                         asset_id: "c9f10236fbacc8f86957169763e3a320"
- *                         public_id: "violations/nxgcfaswcriuahb4naw2"
- *                         secure_url: "https://res.cloudinary.com/dezrlor5e/image/upload/v1779172467/violations/nxgcfaswcriuahb4naw2.png"
- *                         url: "http://res.cloudinary.com/dezrlor5e/image/upload/v1779172467/violations/nxgcfaswcriuahb4naw2.png"
- *                         format: "png"
+ *                 type: string
+ *                 description: JSON string болгосон violations массив
+ *                 example: '[{"title":"Малгай өмсөөгүй","severity":"medium","department":"Үйлдвэр"}]'
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: Зураг (jpg, jpeg, png) — заавал биш
  *     responses:
  *       201:
  *         description: Амжилттай бүртгэгдлээ
  */
-router.get('/', auth, c.getAllViolations);
-router.post('/', auth, c.createViolation);
+router.get('/', auth,                            c.getAllViolations);
+router.post('/', auth, upload.single("file"),    c.createViolation);
 
 /**
  * @swagger
- * /api/violations/{id}/upload:
- *   post:
- *     tags: [Violations]
- *     summary: Зөрчилд файл/зураг хавсаргах (Backend-ээр дамжуулах)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - file
- *             properties:
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: Зураг эсвэл PDF файл (jpg, jpeg, png, pdf)
- *     responses:
- *       200:
- *         description: Амжилттай хуулагдлаа
- *       400:
- *         description: Файл илгээгдээгүй
- *
  * /api/violations/{id}/file:
  *   delete:
  *     tags: [Violations]
- *     summary: Зөрчлийн файл устгах (Бааз доторх JSON-оос public_id уншиж устгана)
+ *     summary: Зөрчлийн зураг устгах (image_url баганаас Cloudinary-д устгаад null болгоно)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -170,10 +118,11 @@ router.post('/', auth, c.createViolation);
  *     responses:
  *       200:
  *         description: Амжилттай устгагдлаа
+ *       400:
+ *         description: Устгах зураг байхгүй
  *       404:
- *         description: Зөрчил эсвэл файл олдсонгүй
+ *         description: Зөрчил олдсонгүй
  */
-router.post("/:id/upload", auth, upload.single("file"), c.uploadFile);
-router.delete("/:id/file", auth,                        c.deleteFile);
+router.delete("/:id/file", auth, c.deleteFile);
 
 module.exports = router;

@@ -1,23 +1,13 @@
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const multer = require('multer');
+const multer     = require('multer');
 
-// Cloudinary-ийг тохируулах хэсэг
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key:    process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Файл хадгалах сангийн тохиргоо
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'audit_evidences', // Cloudinary дээр үүсэх хавтасны нэр
-    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'jfif'],
-  },
-});
-
-const upload = multer({ storage: storage });
+// Buffer-т хадгална, Cloudinary-д controller дотроос upload хийнэ
+const upload = multer({ storage: multer.memoryStorage() });
 
 module.exports = upload;
