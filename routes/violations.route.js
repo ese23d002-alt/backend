@@ -1,6 +1,7 @@
-const router = require('express').Router();
-const auth   = require('../middleware/auth');
-const c      = require('../controllers/violations.controller');
+const express = require('express');
+const router = express.Router();
+const auth = require('../middleware/auth');
+const c = require('../controllers/violations.controller');
 const upload = require("../middleware/upload");
 
 /**
@@ -9,6 +10,30 @@ const upload = require("../middleware/upload");
  *   - name: Violations
  *     description: Зөрчлийн менежмент (Violation & Actions)
  */
+
+/**
+ * @swagger
+ * /api/violations/check-duplicates:
+ *   get:
+ *     tags: [Violations]
+ *     summary: Ижил төстэй давтагдсан зөрчил байгаа эсэхийг шалгах
+ *     parameters:
+ *       - in: query
+ *         name: title
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Зөрчлийн гарчиг/нэр
+ *       - in: query
+ *         name: department
+ *         schema:
+ *           type: string
+ *         description: Хариуцах хэлтэс
+ *     responses:
+ *       200:
+ *         description: Амжилттай
+ */
+router.get('/check-duplicates', c.checkDuplicates);
 
 /**
  * @swagger
@@ -100,7 +125,7 @@ router.get('/stats', auth, c.getGeneralStats);
  *       201:
  *         description: Амжилттай бүртгэгдлээ
  */
-router.get('/', auth,                            c.getAllViolations);
+router.get('/', auth, c.getAllViolations);
 router.post('/', auth, upload.array("files", 10), c.createViolation);
 
 /**
