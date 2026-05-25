@@ -293,18 +293,22 @@ exports.createViolation = async (req, res) => {
     try {
         const { group_number, year, quarter, rating, violations } = req.body;
 
-        // Файлуудыг group-т хадгална
+        // Файлуудыг group-т хадгалах хэсгийг уян хатан болгох
         let filesData = null;
-        if (req.files && req.files.length > 0) {
-            filesData = JSON.stringify(req.files.map(f => ({
+        
+        // Фронтоос ганц файл 'file' нэрээр ирсэн үү, эсвэл олон файл 'files' ирсэн үү гэдгийг шалгах
+        const uploadedFiles = req.files || (req.file ? [req.file] : []);
+
+        if (uploadedFiles && uploadedFiles.length > 0) {
+            filesData = JSON.stringify(uploadedFiles.map(f => ({
                 public_id:     f.filename,
                 secure_url:    f.path,
                 url:           f.path,
                 original_name: f.originalname,
-                resource_type: f.mimetype.startsWith('video/') ? 'video'
-                             : f.mimetype === 'application/pdf'  ? 'raw'
+                resource_type: f.mimetype && f.mimetype.startsWith('video/') ? 'video'
+                             : f.mimetype && f.mimetype === 'application/pdf'  ? 'raw'
                              : 'image',
-                format: f.originalname.split('.').pop()
+                format: f.originalname ? f.originalname.split('.').pop() : 'png'
             })));
         }
 
@@ -313,10 +317,9 @@ exports.createViolation = async (req, res) => {
         let savedViolations = [];
 
         if (violations) {
-            let cloudinaryResult = null; // violation-д файл хадгалахгүй
-
             let parsedViolations;
             try {
+                // Фронтоос ирсэн violations нь string бол JSON parse хийнэ
                 parsedViolations = typeof violations === 'string'
                     ? JSON.parse(violations)
                     : violations;
@@ -328,7 +331,10 @@ exports.createViolation = async (req, res) => {
                 });
             }
 
-            const data = parsedViolations.map((v, index) => {
+            // Хэрэв ганц объект ирвэл массив болгож хөрвүүлнэ аюулгүй байдлын үүднээс
+            const violationsArray = Array.isArray(parsedViolations) ? parsedViolations : [parsedViolations];
+
+            const data = violationsArray.map((v, index) => {
                 let imageData = null;
 
                 if (v.image_urls && typeof v.image_urls === 'object') {
@@ -347,7 +353,7 @@ exports.createViolation = async (req, res) => {
                     assignee_name: v.assignee_name || '',
                     due_date:      v.due_date      || null,
                     group_id:      group.id,
-                    image_urls:     imageData
+                    image_urls:    imageData
                 };
             });
 
