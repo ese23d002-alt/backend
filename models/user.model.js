@@ -1,6 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../db/database");
 
+
 // 1. Хэрэглэгчийн модел
 const User = sequelize.define("User", {
     id:                     { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },

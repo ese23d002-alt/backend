@@ -126,7 +126,7 @@ router.get('/stats', auth, c.getGeneralStats);
  *         description: Амжилттай бүртгэгдлээ
  */
 router.get('/', auth, c.getAllViolations);
-router.post('/', auth, upload.array("files", 10), c.createViolation);
+router.post('/', auth, upload.any(), c.createViolation);
 
 /**
  * @swagger
